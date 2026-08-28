@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crônica — Registros da mesa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <span class="masthead__word" id="siteWord">Crônica</span>
+  <span class="masthead__sub" id="siteSub">registros da mesa</span>
+</header>
+
+<button class="spine-toggle" id="spineToggle" aria-expanded="false" aria-controls="spine">☰ Índice de entradas</button>
+
+<div class="chronicle">
+  <nav class="spine" id="spine" aria-label="Índice de entradas"></nav>
+
+  <main class="page-wrap">
+    <article class="page torn paper-grain" id="page">
+      <p class="empty-state">Carregando a crônica…</p>
+    </article>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/render.js"></script>
+<script src="js/reader.js"></script>
+</body>
+</html>
