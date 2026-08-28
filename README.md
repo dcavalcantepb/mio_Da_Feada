@@ -1,2 +1,2 @@
 # mio_Da_Feada
-Site do Mio da Feada das Lendas de Neteria
+Aplicação Web do Mio da Feada das Lendas de Neteria
