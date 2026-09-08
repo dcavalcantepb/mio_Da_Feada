@@ -69,6 +69,7 @@
 }
 
 *{ box-sizing:border-box; }
+html{ font-size:108%; }
 html,body{ height:100%; }
 body{
   margin:0; background:var(--void); color:var(--ink);
@@ -86,8 +87,17 @@ hr{ border:none; border-top:1px solid var(--rule); margin:0; }
   padding:2.4rem 1.5rem 1.6rem; text-align:center;
 }
 .masthead__brand{
-  display:flex; flex-direction:column; align-items:center; gap:.15rem;
+  display:flex; flex-direction:row; align-items:center; gap:.9rem;
   text-decoration:none; color:inherit; max-width:100%;
+}
+.masthead__mascot{
+  width:64px; height:64px; flex:none; object-fit:contain;
+  filter:var(--glow-skull); animation:skullPulse 3.4s ease-in-out infinite;
+}
+@keyframes skullPulse{ 0%,100%{ opacity:.88; } 50%{ opacity:1; } }
+@media (prefers-reduced-motion: reduce){ .masthead__mascot{ animation:none; } }
+.masthead__wordmark{
+  display:flex; flex-direction:column; align-items:flex-start; gap:.15rem;
 }
 .masthead__word{
   font-family:var(--font-display); font-size:clamp(2rem,7vw,4.2rem);
@@ -151,7 +161,7 @@ hr{ border:none; border-top:1px solid var(--rule); margin:0; }
   height:100%; flex:1;
   background:
     radial-gradient(ellipse at 50% -20%, var(--tint-spine), transparent 60%),
-    linear-gradient(180deg, var(--void-2), var(--void));
+    var(--void-2);
   padding:1.8rem 1.4rem; border-radius:0;
   box-shadow:inset -1px 0 0 color-mix(in srgb, var(--sun) 35%, transparent);
 }
@@ -162,14 +172,6 @@ hr{ border:none; border-top:1px solid var(--rule); margin:0; }
   }
   .spine.spine--open{ display:block; }
 }
-.spine__mascot{
-  width:100px; aspect-ratio:1/1; height:auto; margin:0 auto 1.1rem;
-  filter:var(--glow-skull); animation:skullPulse 3.4s ease-in-out infinite;
-}
-.spine__mascot img{ width:100%; height:100%; object-fit:contain; display:block; }
-@keyframes skullPulse{ 0%,100%{ opacity:.88; } 50%{ opacity:1; } }
-@media (prefers-reduced-motion: reduce){ .spine__mascot{ animation:none; } }
-
 /* categorias como botões empilhados — nunca lado a lado */
 .spine__categories{
   display:flex; flex-direction:column; gap:.5rem; margin-bottom:1.2rem;
