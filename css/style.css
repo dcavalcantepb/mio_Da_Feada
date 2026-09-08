@@ -155,14 +155,12 @@ hr{ border:none; border-top:1px solid var(--rule); margin:0; }
   .spine.spine--open{ display:block; }
 }
 .spine__mascot{
-  width:100px; aspect-ratio:140/160; height:auto; margin:0 auto 1.1rem;
-  color:var(--ink-soft); filter:var(--glow-skull);
+  width:100px; aspect-ratio:1/1; height:auto; margin:0 auto 1.1rem;
+  filter:var(--glow-skull); animation:skullPulse 3.4s ease-in-out infinite;
 }
-.spine__mascot svg{ width:100%; height:100%; display:block; }
-.skull-eye-glow{ animation:skullPulse 3.4s ease-in-out infinite; transform-origin:center; }
-.skull-eye-glow--right{ animation-delay:.15s; }
-@keyframes skullPulse{ 0%,100%{ opacity:.75; } 50%{ opacity:1; } }
-@media (prefers-reduced-motion: reduce){ .skull-eye-glow{ animation:none; } }
+.spine__mascot img{ width:100%; height:100%; object-fit:contain; display:block; }
+@keyframes skullPulse{ 0%,100%{ opacity:.88; } 50%{ opacity:1; } }
+@media (prefers-reduced-motion: reduce){ .spine__mascot{ animation:none; } }
 
 /* categorias como botões empilhados — nunca lado a lado */
 .spine__categories{
