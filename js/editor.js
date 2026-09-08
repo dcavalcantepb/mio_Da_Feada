@@ -66,12 +66,21 @@ async function initDesk(){
   document.getElementById('btnSaveEntry').addEventListener('click', saveEntryFromForm);
   document.getElementById('btnDeleteEntry').addEventListener('click', deleteCurrentEntry);
   document.getElementById('btnExport').addEventListener('click', exportBackup);
+
+  openEntryFromHash();
+}
+
+/* chegando de um link "editar" numa página de leitura (editor.html#edit=<id>) */
+function openEntryFromHash(){
+  const id = new URLSearchParams(location.hash.replace(/^#/, '')).get('edit');
+  if(id) loadEntryIntoForm(id);
 }
 
 function bindFormEvents(){
   ['fTitle','fType','fCampaign','fDate','fArc','fSession','fTags','fSummary','fContent'].forEach(id => {
     document.getElementById(id).addEventListener('input', updatePreview);
   });
+  document.getElementById('fCampaign').addEventListener('input', updateAutocompleteLists);
 }
 
 function setStatus(msg){
@@ -103,6 +112,20 @@ async function loadEntries(){
   entries = data;
   setStatus('conectado ao banco · ' + entries.length + ' entrada(s)');
   renderEntryList();
+  updateAutocompleteLists();
+}
+
+/* ---------- autocomplete de Campanha / Arco com base no que já existe ---------- */
+function updateAutocompleteLists(){
+  const campaigns = [...new Set(entries.map(e => e.campaign).filter(Boolean))].sort();
+  document.getElementById('campaignList').innerHTML =
+    campaigns.map(c => `<option value="${escapeHtml(c)}">`).join('');
+
+  const currentCampaign = document.getElementById('fCampaign').value.trim();
+  const arcsPool = entries.filter(e => !currentCampaign || e.campaign === currentCampaign);
+  const arcs = [...new Set(arcsPool.map(e => e.arc).filter(Boolean))].sort();
+  document.getElementById('arcList').innerHTML =
+    arcs.map(a => `<option value="${escapeHtml(a)}">`).join('');
 }
 
 /* ---------- form <-> objeto ---------- */
@@ -155,7 +178,7 @@ function clearForm(){
 }
 
 function loadEntryIntoForm(id){
-  const entry = entries.find(e => e.id === id);
+  const entry = entries.find(e => String(e.id) === String(id));
   if(!entry) return;
   currentId = entry.id;
   document.getElementById('fTitle').value = entry.title || '';
@@ -225,7 +248,7 @@ function renderEntryList(){
     const { error } = await supabaseClient.from('entries').delete().eq('id', btn.dataset.id);
     if(error){ alert('Não consegui excluir: ' + error.message); return; }
     await loadEntries();
-    if(currentId === btn.dataset.id) clearForm();
+    if(String(currentId) === btn.dataset.id) clearForm();
     showToast('Entrada excluída.');
   }));
 }

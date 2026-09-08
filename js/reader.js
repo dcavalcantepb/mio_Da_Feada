@@ -166,6 +166,7 @@ function entryHtml(entry){
       <span>${TYPE_LABELS[entry.type] || entry.type}</span>
       ${entry.date ? `<span class="dot">·</span><span>${formatDate(entry.date)}</span>` : ''}
       ${entry.session ? `<span class="dot">·</span><span>Sessão ${entry.session}</span>` : ''}
+      <a class="entry-edit-link" href="editor.html#edit=${encodeURIComponent(entry.id)}" hidden>✎ editar</a>
     </p>
     <h1>${escapeHtml(entry.title)}</h1>
     ${entry.summary ? `<p class="page__summary">${escapeHtml(entry.summary)}</p>` : ''}
@@ -177,6 +178,7 @@ function entryHtml(entry){
 function renderSingleEntry(entry, withBackLink){
   const back = withBackLink ? backLinkHtml() : '';
   pageEl.innerHTML = back + entryHtml(entry);
+  revealEditLinks();
 }
 
 function renderSequentialReading(entries, label){
@@ -186,6 +188,7 @@ function renderSequentialReading(entries, label){
     <div class="entry-block">${entryHtml(e)}</div>
   `).join('');
   pageEl.innerHTML = back + body;
+  revealEditLinks();
 }
 
 function backLinkHtml(){
@@ -202,12 +205,20 @@ function markActiveCategoryLink(){
   });
 }
 
-/* ---------- "+ Nova entrada" só aparece pra quem já está logado ---------- */
+/* ---------- "+ Nova entrada" e "editar" só aparecem pra quem já está logado ---------- */
+let isAuthed = false;
 async function checkEditorAccess(){
   try{
     const { data } = await supabaseClient.auth.getSession();
-    if(data?.session) document.getElementById('btnNewEntry')?.removeAttribute('hidden');
-  }catch{ /* sem sessão, botão continua escondido */ }
+    isAuthed = !!data?.session;
+  }catch{ isAuthed = false; }
+  if(isAuthed) document.getElementById('btnNewEntry')?.removeAttribute('hidden');
+  revealEditLinks();
+}
+
+function revealEditLinks(){
+  if(!isAuthed) return;
+  document.querySelectorAll('.entry-edit-link[hidden]').forEach(a => a.removeAttribute('hidden'));
 }
 
 /* ---------- índice em telas pequenas ---------- */
