@@ -5,9 +5,12 @@ GitHub Pages, com um banco de dados de verdade no Supabase:
 
 - **`index.html`** — a página inicial. Só os links para as duas seções e
   a Campanha mais recente, em leitura completa.
-- **`campanhas.html`** — todos os relatos de mesa, organizados numa árvore
-  de diretórios: Campanha → Arco → entrada.
-- **`tomos.html`** — a lore de Kauntar, listada por título.
+- **`campanhas.html`** — clique numa Campanha pra ver seus Arcos, clique
+  num Arco pra ler todas as entradas dele em sequência (mais antiga
+  primeiro, rolando a tela). Ao entrar nessa leitura a barra lateral
+  some por completo, só sobra "← Campanhas" pra voltar.
+- **`tomos.html`** — mesma ideia, mas numa lista só (lore não tem Arco):
+  clique num Tomo pra ler, a barra lateral some do mesmo jeito.
 - **`editor.html`** — o escritório. Onde você cria e edita as entradas,
   atrás de um login real (Supabase Authentication). Quem já está logado
   também vê um botão **"+ Nova entrada"** direto nas páginas de leitura,

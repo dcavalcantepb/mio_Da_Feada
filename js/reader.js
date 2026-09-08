@@ -1,15 +1,22 @@
 /* Monta as páginas de leitura: index.html (home), campanhas.html e
    tomos.html. Todas buscam as entradas no Supabase (fetchStories, de
    render.js) e desenham a parte que cabe ao escopo da página atual,
-   identificado por <body data-scope="home|campanhas|tomos">. */
+   identificado por <body data-scope="home|campanhas|tomos">.
+
+   campanhas.html e tomos.html têm dois modos:
+   - "navegar": a barra lateral mostra a lista pra escolher o que ler
+     (Campanha > Arco em campanhas.html; lista simples em tomos.html).
+   - "ler": a barra lateral some por completo, a página fica cheia com
+     o texto — em campanhas.html isso é a leitura sequencial de todas
+     as entradas do arco escolhido, da mais antiga pra mais nova. */
 
 const SCOPE = document.body.dataset.scope;
 
 let allEntries = [];
-let activeId = null;
 
 const pageEl = document.getElementById('page');
 const spineIndexEl = document.getElementById('spineIndex'); // não existe em index.html
+const chronicleEl = document.querySelector('.chronicle');
 
 async function init(){
   markActiveCategoryLink();
@@ -20,9 +27,9 @@ async function init(){
     document.getElementById('siteSub').textContent = site.subtitle;
     allEntries = entries;
 
-    if(SCOPE === 'home') initHome();
-    else if(SCOPE === 'campanhas') initList('campanha');
-    else if(SCOPE === 'tomos') initList('tomo');
+    if(SCOPE === 'home') return initHome();
+    if(SCOPE === 'campanhas') return renderCampanhasView();
+    if(SCOPE === 'tomos') return renderTomosView();
   }catch(err){
     pageEl.innerHTML = `<p class="empty-state">Não consegui carregar: ${escapeHtml(err.message)}</p>`;
   }
@@ -35,25 +42,7 @@ function initHome(){
     pageEl.innerHTML = '<p class="empty-state">Ainda não há nenhuma Campanha publicada.</p>';
     return;
   }
-  renderPage(campanhas[campanhas.length - 1].id); // fetchStories já vem por data crescente
-}
-
-/* ---------- campanhas.html / tomos.html: índice + leitura ---------- */
-function initList(type){
-  const items = allEntries.filter(e => e.type === type);
-  if(!items.length){
-    if(spineIndexEl) spineIndexEl.innerHTML = '<p class="spine__empty">nada por aqui ainda</p>';
-    pageEl.innerHTML = '<p class="empty-state">Ainda não há nenhuma entrada aqui.</p>';
-    return;
-  }
-  activeId = entryIdFromHash(items) || items[items.length - 1].id;
-  renderList(type, items);
-  renderPage(activeId);
-}
-
-function entryIdFromHash(items){
-  const id = location.hash.replace(/^#/, '');
-  return items.some(e => String(e.id) === id) ? id : null;
+  renderSingleEntry(campanhas[campanhas.length - 1]);
 }
 
 function groupByArc(entries){
@@ -76,65 +65,102 @@ function groupByCampaign(entries){
   return groups;
 }
 
-function itemButtonHtml(e){
-  return `
-    <button class="spine__item" data-id="${e.id}" data-type="${e.type}" aria-current="${String(e.id) === String(activeId)}">
-      <span class="spine__icon">${TYPE_ICONS[e.type] || ''}</span>${escapeHtml(e.title)}
-    </button>
-  `;
+/* ---------- campanhas.html ---------- */
+function readHashParams(){
+  return new URLSearchParams(location.hash.replace(/^#/, ''));
 }
 
-/* Campanhas viram uma árvore de diretórios (Campanha > Arco > entradas);
-   Tomos ficam numa lista simples, ordenada por título. */
-function renderList(type, items){
-  if(!spineIndexEl) return;
-  spineIndexEl.innerHTML = type === 'campanha'
-    ? renderCampaignTree(items)
-    : `<div class="spine__list">${items.slice().sort((a, b) => a.title.localeCompare(b.title, 'pt-BR')).map(itemButtonHtml).join('')}</div>`;
-  wireItemClicks();
+function renderCampanhasView(){
+  const campanhas = allEntries.filter(e => e.type === 'campanha');
+  const params = readHashParams();
+  const campaign = params.get('c');
+  const arc = params.get('a');
+
+  if(campaign && arc){
+    const entries = campanhas.filter(e =>
+      ((e.campaign || '').trim() || 'Sem campanha') === campaign &&
+      ((e.arc || '').trim() || 'Sem arco') === arc
+    );
+    if(entries.length){
+      enterReadingMode();
+      renderSequentialReading(entries, campaign + ' · ' + arc);
+      return;
+    }
+  }
+
+  exitReadingMode();
+  if(!campanhas.length){
+    spineIndexEl.innerHTML = '<p class="spine__empty">nada por aqui ainda</p>';
+    pageEl.innerHTML = '<p class="empty-state">Ainda não há nenhuma Campanha publicada.</p>';
+    return;
+  }
+  spineIndexEl.innerHTML = renderCampaignTree(campanhas);
+  pageEl.innerHTML = '<p class="empty-state">Escolha uma campanha e um arco, ao lado, pra começar a leitura.</p>';
+  wireCampaignTree();
 }
 
 function renderCampaignTree(items){
   let html = '';
   for(const [campaign, campItems] of groupByCampaign(items)){
-    html += `<details class="tree-node tree-node--campaign" open>
+    const arcs = groupByArc(campItems);
+    html += `<details class="tree-node tree-node--campaign">
       <summary class="tree-node__label">${escapeHtml(campaign)}</summary>
-      <div class="tree-node__children">${renderArcGroups(campItems)}</div>
+      <div class="tree-node__children">${
+        [...arcs.keys()].map(arc => `
+          <button class="spine__item" data-c="${escapeHtml(campaign)}" data-a="${escapeHtml(arc)}">${escapeHtml(arc)}</button>
+        `).join('')
+      }</div>
     </details>`;
   }
   return html;
 }
 
-function renderArcGroups(items){
-  let html = '';
-  for(const [arc, arcItems] of groupByArc(items)){
-    const containsActive = arcItems.some(e => String(e.id) === String(activeId));
-    html += `<details class="tree-node tree-node--arc"${containsActive ? ' open' : ''}>
-      <summary class="tree-node__label">${escapeHtml(arc)}</summary>
-      <div class="spine__list">${arcItems.map(itemButtonHtml).join('')}</div>
-    </details>`;
-  }
-  return html;
-}
-
-function wireItemClicks(){
+function wireCampaignTree(){
   spineIndexEl.querySelectorAll('.spine__item').forEach(btn => {
     btn.addEventListener('click', () => {
-      activeId = btn.dataset.id;
-      history.replaceState(null, '', '#' + activeId);
-      spineIndexEl.querySelectorAll('.spine__item[aria-current="true"]').forEach(x => x.setAttribute('aria-current', 'false'));
-      btn.setAttribute('aria-current', 'true');
-      renderPage(activeId);
-      closeSpineOnMobile();
-      pageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const c = btn.dataset.c, a = btn.dataset.a;
+      location.hash = `c=${encodeURIComponent(c)}&a=${encodeURIComponent(a)}`;
     });
   });
 }
 
-function renderPage(id){
-  const entry = allEntries.find(e => String(e.id) === String(id));
-  if(!entry) return;
-  pageEl.innerHTML = `
+/* ---------- tomos.html ---------- */
+function renderTomosView(){
+  const tomos = allEntries.filter(e => e.type === 'tomo');
+  const params = readHashParams();
+  const id = params.get('id');
+
+  if(id){
+    const entry = tomos.find(e => String(e.id) === id);
+    if(entry){
+      enterReadingMode();
+      renderSingleEntry(entry, true);
+      return;
+    }
+  }
+
+  exitReadingMode();
+  if(!tomos.length){
+    spineIndexEl.innerHTML = '<p class="spine__empty">nada por aqui ainda</p>';
+    pageEl.innerHTML = '<p class="empty-state">Ainda não há nenhum Tomo publicado.</p>';
+    return;
+  }
+  const sorted = tomos.slice().sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
+  spineIndexEl.innerHTML = `<div class="spine__list">${
+    sorted.map(e => `<button class="spine__item" data-id="${e.id}">${escapeHtml(e.title)}</button>`).join('')
+  }</div>`;
+  pageEl.innerHTML = '<p class="empty-state">Escolha um tomo, ao lado, pra ler.</p>';
+  spineIndexEl.querySelectorAll('.spine__item').forEach(btn => {
+    btn.addEventListener('click', () => { location.hash = `id=${encodeURIComponent(btn.dataset.id)}`; });
+  });
+}
+
+/* ---------- modo de leitura: some com a lombada, a página fica cheia ---------- */
+function enterReadingMode(){ chronicleEl.classList.add('is-reading'); }
+function exitReadingMode(){ chronicleEl.classList.remove('is-reading'); }
+
+function entryHtml(entry){
+  return `
     <p class="page__eyebrow" data-type="${entry.type}">
       ${TYPE_ICONS[entry.type] || ''}
       <span>${TYPE_LABELS[entry.type] || entry.type}</span>
@@ -146,6 +172,26 @@ function renderPage(id){
     ${entry.tags && entry.tags.length ? `<div class="page__tags">${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
     <div class="page__body">${renderMarkdownLite(entry.content)}</div>
   `;
+}
+
+function renderSingleEntry(entry, withBackLink){
+  const back = withBackLink ? backLinkHtml() : '';
+  pageEl.innerHTML = back + entryHtml(entry);
+}
+
+function renderSequentialReading(entries, label){
+  const back = backLinkHtml();
+  const body = entries.map((e, i) => `
+    ${i > 0 ? '<hr class="entry-divider">' : ''}
+    <div class="entry-block">${entryHtml(e)}</div>
+  `).join('');
+  pageEl.innerHTML = back + body;
+}
+
+function backLinkHtml(){
+  const href = SCOPE === 'campanhas' ? 'campanhas.html' : 'tomos.html';
+  const label = SCOPE === 'campanhas' ? 'Campanhas' : 'Tomos de Kauntar';
+  return `<a class="page__back" href="${href}">← ${label}</a>`;
 }
 
 /* ---------- destaca em qual página (Campanhas/Tomos) você está ---------- */
@@ -171,23 +217,11 @@ spineToggle?.addEventListener('click', () => {
   const open = spineEl.classList.toggle('spine--open');
   spineToggle.setAttribute('aria-expanded', String(open));
 });
-function closeSpineOnMobile(){
-  if(window.matchMedia('(max-width: 760px)').matches){
-    spineEl.classList.remove('spine--open');
-    spineToggle?.setAttribute('aria-expanded', 'false');
-  }
-}
 
 window.addEventListener('hashchange', () => {
-  if(SCOPE === 'home' || !allEntries.length) return;
-  const type = SCOPE === 'campanhas' ? 'campanha' : 'tomo';
-  const items = allEntries.filter(e => e.type === type);
-  const id = entryIdFromHash(items);
-  if(id){
-    activeId = id;
-    renderPage(id);
-    spineIndexEl?.querySelectorAll('.spine__item').forEach(b => b.setAttribute('aria-current', String(b.dataset.id === id)));
-  }
+  if(!allEntries.length) return;
+  if(SCOPE === 'campanhas') renderCampanhasView();
+  else if(SCOPE === 'tomos') renderTomosView();
 });
 
 init();

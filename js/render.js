@@ -51,13 +51,15 @@ const SITE_INFO = {
 };
 
 /* Busca todas as entradas na tabela `entries` do Supabase.
-   .select('*') pede todas as colunas; .order() pede pro próprio banco
-   já devolver ordenado por data, em vez de a gente ordenar no navegador. */
+   .select('*') pede todas as colunas; ordena por data e, em caso de
+   empate (vários registros no mesmo dia), por created_at — sem esse
+   desempate, "a entrada mais recente" ficava instável a cada carga. */
 async function fetchStories(){
   const { data, error } = await supabaseClient
     .from('entries')
     .select('*')
-    .order('date', { ascending: true });
+    .order('date', { ascending: true })
+    .order('created_at', { ascending: true });
   if(error) throw new Error(error.message);
   return { site: SITE_INFO, entries: data };
 }

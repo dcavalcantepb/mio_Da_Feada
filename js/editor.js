@@ -93,7 +93,8 @@ async function loadEntries(){
   const { data, error } = await supabaseClient
     .from('entries')
     .select('*')
-    .order('date', { ascending: true });
+    .order('date', { ascending: true })
+    .order('created_at', { ascending: true });
   if(error){
     setStatus('erro ao carregar');
     alert('Não consegui carregar as entradas: ' + error.message);
@@ -190,8 +191,10 @@ async function saveEntryFromForm(){
   document.getElementById('btnDeleteEntry').hidden = false;
   setStatus('salvo no banco · ' + new Date().toLocaleTimeString('pt-BR'));
   showToast('Entrada salva! Indo para o site…');
-  const destPage = payload.type === 'tomo' ? 'tomos.html' : 'campanhas.html';
-  setTimeout(() => { location.href = destPage + '#' + currentId; }, 900);
+  const dest = payload.type === 'tomo'
+    ? `tomos.html#id=${encodeURIComponent(currentId)}`
+    : `campanhas.html#c=${encodeURIComponent(payload.campaign.trim() || 'Sem campanha')}&a=${encodeURIComponent(payload.arc.trim() || 'Sem arco')}`;
+  setTimeout(() => { location.href = dest; }, 900);
 }
 
 async function deleteCurrentEntry(){
