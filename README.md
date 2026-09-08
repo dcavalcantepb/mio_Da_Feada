@@ -8,9 +8,12 @@ GitHub Pages, com um banco de dados de verdade no Supabase:
 - **`campanhas.html`** — clique numa Campanha pra ver seus Arcos, clique
   num Arco pra ler todas as entradas dele em sequência (mais antiga
   primeiro, rolando a tela). Ao entrar nessa leitura a barra lateral
-  some por completo, só sobra "← Campanhas" pra voltar.
-- **`tomos.html`** — mesma ideia, mas numa lista só (lore não tem Arco):
-  clique num Tomo pra ler, a barra lateral some do mesmo jeito.
+  some por completo; uma trilha no topo ("Campanhas > Campanha > Arco")
+  e links de anterior/próximo arco no fim substituem o índice.
+- **`tomos.html`** — mesma ideia de árvore, mas agrupando por Campanha
+  direto (lore não tem Arco): clique numa Campanha pra ver os Tomos
+  dela, clique num Tomo pra ler. A barra lateral some do mesmo jeito,
+  com a mesma trilha + anterior/próximo (entre tomos da mesma campanha).
 - **`editor.html`** — o escritório. Onde você cria e edita as entradas,
   atrás de um login real (Supabase Authentication). Quem já está logado
   também vê um botão **"+ Nova entrada"** direto nas páginas de leitura,
@@ -60,10 +63,12 @@ publicar nada.
 - `type` aceita duas categorias: `campanha` (relatos de mesa) e `tomo`
   (lore de Kauntar). Rótulos e ícones em `js/render.js`, cores em
   `css/style.css`.
-- `campaign` só faz sentido para `type = campanha` — é o nível acima de
-  `arc` na árvore de `campanhas.html` (ex.: campanha "A Queda de
-  Ferramor" contendo os arcos "Arco 1", "Arco 2"...). Entradas sem
-  `campaign` caem num grupo "Sem campanha" na árvore, não desaparecem.
+- `campaign` agrupa as duas categorias: em `campanhas.html` é o nível
+  acima de `arc` na árvore (ex.: campanha "A Queda de Ferramor"
+  contendo os arcos "Arco 1", "Arco 2"...); em `tomos.html`, como lore
+  não tem `arc`, `campaign` é o único nível de agrupamento (a campanha
+  contém os tomos direto). Entradas sem `campaign` caem num grupo "Sem
+  campanha" na árvore, não desaparecem.
 - O botão "+ Nova entrada" nas páginas de leitura é só uma conveniência
   de interface: ele consulta `supabaseClient.auth.getSession()` no
   navegador pra decidir se aparece. Quem realmente barra escrita não
