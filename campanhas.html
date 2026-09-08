@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>O Mio da Feada — Bem-vindo a Netéria</title>
+<title>Campanhas — O Mio da Feada</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/theme.js"></script>
 </head>
-<body data-scope="home">
+<body data-scope="campanhas">
 
 <header class="masthead">
   <a class="masthead__brand" href="index.html">
@@ -22,12 +22,12 @@
   </div>
 </header>
 
-<button class="spine-toggle" id="spineToggle" aria-expanded="false" aria-controls="spine">☰ Categorias</button>
+<button class="spine-toggle" id="spineToggle" aria-expanded="false" aria-controls="spine">☰ Índice de Campanhas</button>
 
 <div class="chronicle">
   <div class="spine-col">
     <a class="btn btn--primary spine__new" id="btnNewEntry" href="editor.html" hidden>+ Nova entrada</a>
-    <nav class="spine" id="spine" aria-label="Categorias">
+    <nav class="spine" id="spine" aria-label="Índice de Campanhas">
       <div class="spine__mascot" aria-hidden="true">
         <svg viewBox="0 0 140 160">
           <defs>
@@ -56,12 +56,13 @@
         <a class="spine__category-link" href="campanhas.html">Campanhas</a>
         <a class="spine__category-link" href="tomos.html">Tomos de Kauntar</a>
       </div>
+      <div id="spineIndex"></div>
     </nav>
   </div>
 
   <main class="page-wrap">
     <article class="page torn paper-grain" id="page">
-      <p class="empty-state">Carregando a crônica…</p>
+      <p class="empty-state">Carregando…</p>
     </article>
   </main>
 </div>

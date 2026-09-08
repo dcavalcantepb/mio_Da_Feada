@@ -1,13 +1,17 @@
 # O Mio da Feada — crônica das Lendas de Netéria
 
-Site com duas partes, front-end estático (HTML + CSS + JS puro, sem build)
-hospedado no GitHub Pages, e um banco de dados de verdade no Supabase:
+Site front-end estático (HTML + CSS + JS puro, sem build) hospedado no
+GitHub Pages, com um banco de dados de verdade no Supabase:
 
-- **`index.html`** — a leitura. Qualquer pessoa com o link vê as entradas,
-  organizadas por arco, num visual de crônica/tomo. Busca os dados direto
-  na tabela `entries` do Supabase.
+- **`index.html`** — a página inicial. Só os links para as duas seções e
+  a Campanha mais recente, em leitura completa.
+- **`campanhas.html`** — todos os relatos de mesa, organizados numa árvore
+  de diretórios: Campanha → Arco → entrada.
+- **`tomos.html`** — a lore de Kauntar, listada por título.
 - **`editor.html`** — o escritório. Onde você cria e edita as entradas,
-  atrás de um login real (Supabase Authentication).
+  atrás de um login real (Supabase Authentication). Quem já está logado
+  também vê um botão **"+ Nova entrada"** direto nas páginas de leitura,
+  acima do índice lateral — visitantes anônimos nunca veem esse botão.
 
 ## Como funciona o controle de quem edita
 
@@ -48,12 +52,20 @@ publicar nada.
   Ambas são seguras de expor no código: quem decide o que pode ou não ser
   feito são as RLS policies da tabela, não essas credenciais.
 - A tabela `entries` tem as colunas: `id`, `created_at` (automáticas),
-  `title`, `type`, `arc`, `session`, `date`, `tags` (lista), `summary`,
-  `content`.
-- `type` aceita duas categorias: `campanha` (relatos de mesa — a página
-  inicial sempre mostra a Campanha mais recente) e `tomo` (lore de
-  Kauntar, listado à parte, sem entrada padrão). Rótulos e ícones em
-  `js/render.js`, cores em `css/style.css`.
+  `title`, `type`, `campaign`, `arc`, `session`, `date`, `tags` (lista),
+  `summary`, `content`.
+- `type` aceita duas categorias: `campanha` (relatos de mesa) e `tomo`
+  (lore de Kauntar). Rótulos e ícones em `js/render.js`, cores em
+  `css/style.css`.
+- `campaign` só faz sentido para `type = campanha` — é o nível acima de
+  `arc` na árvore de `campanhas.html` (ex.: campanha "A Queda de
+  Ferramor" contendo os arcos "Arco 1", "Arco 2"...). Entradas sem
+  `campaign` caem num grupo "Sem campanha" na árvore, não desaparecem.
+- O botão "+ Nova entrada" nas páginas de leitura é só uma conveniência
+  de interface: ele consulta `supabaseClient.auth.getSession()` no
+  navegador pra decidir se aparece. Quem realmente barra escrita não
+  autorizada é a RLS da tabela (`authenticated_Writing`), não esse
+  botão — então não há problema de segurança em como ele é escondido.
 
 Se algum dia você trocar de projeto Supabase (ou criar um segundo, por
 exemplo para testes), só precisa atualizar `SUPABASE_URL` e
@@ -64,8 +76,8 @@ exemplo para testes), só precisa atualizar `SUPABASE_URL` e
 O front-end continua 100% estático — o GitHub Pages só entrega os arquivos,
 quem fala com o banco é o JavaScript rodando no navegador de quem acessa.
 
-1. Suba esta pasta inteira (`index.html`, `editor.html`, `css/`, `js/`) para
-   um repositório no GitHub.
+1. Suba esta pasta inteira (`index.html`, `campanhas.html`, `tomos.html`,
+   `editor.html`, `css/`, `js/`) para um repositório no GitHub.
 2. No repositório, vá em **Settings → Pages**.
 3. Em **Source**, escolha a branch `main` (ou `master`) e a pasta `/ (root)`.
 4. Salve. Em alguns minutos o GitHub mostra o link público, algo como:

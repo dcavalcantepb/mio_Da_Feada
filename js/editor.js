@@ -69,7 +69,7 @@ async function initDesk(){
 }
 
 function bindFormEvents(){
-  ['fTitle','fType','fDate','fArc','fSession','fTags','fSummary','fContent'].forEach(id => {
+  ['fTitle','fType','fCampaign','fDate','fArc','fSession','fTags','fSummary','fContent'].forEach(id => {
     document.getElementById(id).addEventListener('input', updatePreview);
   });
 }
@@ -111,6 +111,7 @@ function formToEntry(){
   return {
     title: document.getElementById('fTitle').value.trim() || 'Sem título',
     type: document.getElementById('fType').value,
+    campaign: document.getElementById('fCampaign').value.trim(),
     arc: document.getElementById('fArc').value.trim(),
     session: document.getElementById('fSession').value ? Number(document.getElementById('fSession').value) : null,
     date: document.getElementById('fDate').value || null,
@@ -142,6 +143,7 @@ function clearForm(){
   document.getElementById('fTitle').value = '';
   document.getElementById('fType').value = 'campanha';
   document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('fCampaign').value = '';
   document.getElementById('fArc').value = '';
   document.getElementById('fSession').value = '';
   document.getElementById('fTags').value = '';
@@ -158,6 +160,7 @@ function loadEntryIntoForm(id){
   document.getElementById('fTitle').value = entry.title || '';
   document.getElementById('fType').value = entry.type || 'campanha';
   document.getElementById('fDate').value = entry.date || '';
+  document.getElementById('fCampaign').value = entry.campaign || '';
   document.getElementById('fArc').value = entry.arc || '';
   document.getElementById('fSession').value = entry.session ?? '';
   document.getElementById('fTags').value = (entry.tags || []).join(', ');
@@ -187,7 +190,8 @@ async function saveEntryFromForm(){
   document.getElementById('btnDeleteEntry').hidden = false;
   setStatus('salvo no banco · ' + new Date().toLocaleTimeString('pt-BR'));
   showToast('Entrada salva! Indo para o site…');
-  setTimeout(() => { location.href = 'index.html#' + currentId; }, 900);
+  const destPage = payload.type === 'tomo' ? 'tomos.html' : 'campanhas.html';
+  setTimeout(() => { location.href = destPage + '#' + currentId; }, 900);
 }
 
 async function deleteCurrentEntry(){
