@@ -7,18 +7,46 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
 </head>
 <body>
 
 <header class="masthead">
   <span class="masthead__word" id="siteWord">Crônica</span>
   <span class="masthead__sub" id="siteSub">registros da mesa</span>
+  <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar entre dia e noite" title="Alternar entre dia e noite"></button>
 </header>
 
 <button class="spine-toggle" id="spineToggle" aria-expanded="false" aria-controls="spine">☰ Índice de entradas</button>
 
 <div class="chronicle">
-  <nav class="spine" id="spine" aria-label="Índice de entradas"></nav>
+  <nav class="spine" id="spine" aria-label="Índice de entradas">
+    <div class="spine__mascot" aria-hidden="true">
+      <svg viewBox="0 0 140 160">
+        <defs>
+          <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" style="stop-color:var(--eyecore)"/>
+            <stop offset="38%" style="stop-color:var(--violet)"/>
+            <stop offset="100%" style="stop-color:var(--violet)" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path d="M70 6 C42 6 20 30 20 60 C20 82 28 98 36 110 C40 116 44 122 44 132 C44 138 48 142 54 142 L86 142 C92 142 96 138 96 132 C96 122 100 116 104 110 C112 98 120 82 120 60 C120 30 98 6 70 6 Z"
+          style="fill:var(--hood)" stroke="none"/>
+        <path id="skullFace" d="M70 26 C50 26 34 44 34 66 C34 84 40 96 46 106 C49 111 52 116 52 124 L88 124 C88 116 91 111 94 106 C100 96 106 84 106 66 C106 44 90 26 70 26 Z"
+          style="fill:var(--skull-skin)"/>
+        <use href="#skullFace" fill="none" stroke="var(--sun)" stroke-width="2.4"/>
+        <use href="#skullFace" fill="none" stroke="var(--sun)" stroke-width="1" stroke-dasharray="1.5 4.5" opacity=".7" transform="translate(0,-3) scale(0.985)" transform-origin="70 84"/>
+        <line x1="70" y1="34" x2="70" y2="58" style="stroke:var(--hood)" stroke-width="1.3" opacity=".3"/>
+        <path d="M70 82 L64 94 L76 94 Z" style="fill:var(--hood)" opacity=".85"/>
+        <circle class="skull-eye-glow skull-eye-glow--left" cx="54" cy="68" r="15" fill="url(#eyeGlow)"/>
+        <circle class="skull-eye-glow skull-eye-glow--right" cx="86" cy="68" r="15" fill="url(#eyeGlow)"/>
+        <circle cx="54" cy="68" r="5.5" style="fill:var(--eyecore)"/>
+        <circle cx="86" cy="68" r="5.5" style="fill:var(--eyecore)"/>
+        <path d="M54 106 L58 116 L62 106 L66 116 L70 106 L74 116 L78 106 L82 116 L86 106" fill="none" style="stroke:var(--hood)" stroke-width="2" stroke-linejoin="round" opacity=".85"/>
+      </svg>
+    </div>
+    <div id="spineIndex"></div>
+  </nav>
 
   <main class="page-wrap">
     <article class="page torn paper-grain" id="page">

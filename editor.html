@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
 </head>
 <body>
 
@@ -24,6 +25,7 @@
   <header class="masthead">
     <span class="masthead__word">Crônica</span>
     <span class="masthead__sub">escritório do mestre</span>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar entre dia e noite" title="Alternar entre dia e noite"></button>
   </header>
 
   <div class="toolbar">
@@ -37,7 +39,7 @@
   <div class="desk__body">
     <section class="form-pane">
       <details style="margin-bottom:1.2rem;">
-        <summary style="cursor:pointer; color:var(--brass-lt); font-family:var(--font-mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em;">Entradas existentes</summary>
+        <summary style="cursor:pointer; color:var(--violet); font-family:var(--font-mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em;">Entradas existentes</summary>
         <ul class="entry-list" id="entryList" style="margin-top:.6rem;"></ul>
       </details>
 
