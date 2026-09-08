@@ -1,4 +1,4 @@
-# Crônica — repositório de histórias de RPG
+# O Mio da Feada — crônica das Lendas de Netéria
 
 Site com duas partes, front-end estático (HTML + CSS + JS puro, sem build)
 hospedado no GitHub Pages, e um banco de dados de verdade no Supabase:
@@ -50,8 +50,10 @@ publicar nada.
 - A tabela `entries` tem as colunas: `id`, `created_at` (automáticas),
   `title`, `type`, `arc`, `session`, `date`, `tags` (lista), `summary`,
   `content`.
-- `type` aceita: `sessao`, `personagem`, `local`, `lore` — cada um tem um
-  selo/ícone próprio na leitura (editável em `js/render.js` e `css/style.css`).
+- `type` aceita duas categorias: `campanha` (relatos de mesa — a página
+  inicial sempre mostra a Campanha mais recente) e `tomo` (lore de
+  Kauntar, listado à parte, sem entrada padrão). Rótulos e ícones em
+  `js/render.js`, cores em `css/style.css`.
 
 Se algum dia você trocar de projeto Supabase (ou criar um segundo, por
 exemplo para testes), só precisa atualizar `SUPABASE_URL` e

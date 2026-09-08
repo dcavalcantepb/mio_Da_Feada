@@ -131,7 +131,7 @@ function updatePreview(){
 function clearForm(){
   currentId = null;
   document.getElementById('fTitle').value = '';
-  document.getElementById('fType').value = 'sessao';
+  document.getElementById('fType').value = 'campanha';
   document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
   document.getElementById('fArc').value = '';
   document.getElementById('fSession').value = '';
@@ -147,7 +147,7 @@ function loadEntryIntoForm(id){
   if(!entry) return;
   currentId = entry.id;
   document.getElementById('fTitle').value = entry.title || '';
-  document.getElementById('fType').value = entry.type || 'sessao';
+  document.getElementById('fType').value = entry.type || 'campanha';
   document.getElementById('fDate').value = entry.date || '';
   document.getElementById('fArc').value = entry.arc || '';
   document.getElementById('fSession').value = entry.session ?? '';
