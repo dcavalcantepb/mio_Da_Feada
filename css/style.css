@@ -253,6 +253,24 @@ button{ appearance:none; -webkit-appearance:none; background:none; border:none; 
 }
 .gate input::placeholder{ color:var(--ink-soft); opacity:.7; }
 .warn{ color:var(--magenta); font-size:.82rem; margin:0; }
+.gate__back{
+  font-family:var(--font-mono); font-size:.72rem; letter-spacing:.04em;
+  color:var(--ink-soft); text-decoration:none; margin-top:.4rem;
+}
+.gate__back:hover{ color:var(--ink); }
+
+/* ---------- aviso flutuante (salvar / excluir) ---------- */
+.toast{
+  position:fixed; left:50%; bottom:1.6rem; transform:translate(-50%, 12px);
+  max-width:90vw; background:var(--void-3); color:var(--ink);
+  border:1px solid var(--rule); border-radius:8px; padding:.7rem 1.2rem;
+  font-size:.88rem; box-shadow:var(--glow-tome);
+  opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+  z-index:50;
+}
+.toast::before{ content:'✦'; margin-right:.5rem; color:var(--magenta); }
+.toast--show{ opacity:1; transform:translate(-50%, 0); }
+@media (prefers-reduced-motion: reduce){ .toast{ transition:none; } }
 
 .desk{ max-width:1120px; margin:0 auto; padding:0 1.5rem 3rem; }
 

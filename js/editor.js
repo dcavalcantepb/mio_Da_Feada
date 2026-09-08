@@ -78,6 +78,15 @@ function setStatus(msg){
   document.getElementById('statusPill').textContent = msg;
 }
 
+let toastTimer = null;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('toast--show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('toast--show'), 2400);
+}
+
 /* ---------- ler do banco ---------- */
 async function loadEntries(){
   setStatus('carregando…');
@@ -177,6 +186,8 @@ async function saveEntryFromForm(){
   await loadEntries();
   document.getElementById('btnDeleteEntry').hidden = false;
   setStatus('salvo no banco · ' + new Date().toLocaleTimeString('pt-BR'));
+  showToast('Entrada salva! Indo para o site…');
+  setTimeout(() => { location.href = 'index.html#' + currentId; }, 900);
 }
 
 async function deleteCurrentEntry(){
@@ -186,6 +197,7 @@ async function deleteCurrentEntry(){
   if(error){ alert('Não consegui excluir: ' + error.message); return; }
   await loadEntries();
   clearForm();
+  showToast('Entrada excluída.');
 }
 
 function renderEntryList(){
@@ -207,6 +219,7 @@ function renderEntryList(){
     if(error){ alert('Não consegui excluir: ' + error.message); return; }
     await loadEntries();
     if(currentId === btn.dataset.id) clearForm();
+    showToast('Entrada excluída.');
   }));
 }
 

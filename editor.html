@@ -19,6 +19,7 @@
   <input type="password" id="gatePassword" placeholder="Senha" autocomplete="current-password">
   <button class="btn btn--primary" id="gateEnter" style="width:100%;justify-content:center;">Entrar</button>
   <p class="warn" id="gateMsg" style="min-height:1em;"></p>
+  <a class="gate__back" href="index.html">← Ver o site</a>
 </div>
 
 <div id="deskScreen" class="desk" hidden>
@@ -32,6 +33,7 @@
     <button class="btn" id="btnNew">+ Nova entrada</button>
     <span class="toolbar__spacer"></span>
     <span class="status-pill" id="statusPill">conectado ao banco</span>
+    <a class="btn btn--ghost" href="index.html">← Ver o site</a>
     <button class="btn btn--ghost" id="btnExport">Baixar cópia de backup ⇩</button>
     <button class="btn btn--ghost" id="btnLogout">Sair</button>
   </div>
@@ -101,6 +103,8 @@
     </section>
   </div>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>
