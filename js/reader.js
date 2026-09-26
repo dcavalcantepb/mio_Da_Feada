@@ -45,7 +45,7 @@ function showSessao(s, isHome){
   const a = (s.arc || '').trim() || NO_ARC;
   const crumbs = [c, a, s.session != null ? `Sessão ${s.session}` : ''];
   paint(
-    `${isHome ? '<p class="post__kicker">Último episódio</p>' : ''}${renderPostHtml(s, 'sessao', crumbs)}${editLink('sessao', s.id)}`,
+    renderPostHtml(s, 'sessao', crumbs, undefined, isHome ? 'Último Episódio - ' : '') + editLink('sessao', s.id),
     s.title
   );
 

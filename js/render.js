@@ -51,6 +51,13 @@ function formatDate(iso){
   return `${d} ${meses[+m-1] || m} ${y}`;
 }
 
+/* 25/09/2026 */
+function formatDateBR(iso){
+  if(!iso) return '';
+  const [y,m,d] = String(iso).slice(0,10).split('-');
+  return y && m && d ? `${d}/${m}/${y}` : String(iso);
+}
+
 function todayISO(){
   const d = new Date();
   const p = n => String(n).padStart(2, '0');
@@ -143,20 +150,26 @@ function buildTomoTree(tomos){
 
 /* ---------- a postagem (usada na leitura e na prévia do editor) ----------
    kind: 'sessao' | 'tomo'. crumbs: trilha de texto acima do título.
-   emptyBody: HTML mostrado quando não há texto (padrão: "Ainda sem texto."). */
-function renderPostHtml(e, kind, crumbs, emptyBody = '<p class="muted">Ainda sem texto.</p>'){
-  const eyebrow = (crumbs || []).filter(Boolean).map(escapeHtml).join(' · ');
-  const meta = [];
-  if(kind === 'sessao' && e.date) meta.push(`<time datetime="${escapeHtml(e.date)}">${escapeHtml(formatDate(e.date))}</time>`);
-  if(e.created_at && e.updated_at &&
-     new Date(e.updated_at) - new Date(e.created_at) > 60000){
-    meta.push(`editado em ${escapeHtml(formatDate(e.updated_at))}`);
-  }
+   emptyBody: HTML mostrado quando não há texto (padrão: "Ainda sem texto.").
+   kickerPrefix: só para sessão — texto antes da data na linha do topo
+   (ex.: "Último Episódio - ").
+
+   Sessão:  [prefixo]25/09/2026
+            Campanha - Arco - Sessão N
+            TÍTULO · resumo · texto
+   Tomo:    caminho · título · resumo · texto */
+function renderPostHtml(e, kind, crumbs, emptyBody = '<p class="muted">Ainda sem texto.</p>', kickerPrefix = ''){
+  const isSessao = kind === 'sessao';
+  const kicker = isSessao && e.date ? `${kickerPrefix}${formatDateBR(e.date)}` : '';
+  const eyebrow = (crumbs || []).filter(Boolean).map(escapeHtml).join(isSessao ? ' - ' : ' · ');
+  const edited = e.created_at && e.updated_at && new Date(e.updated_at) - new Date(e.created_at) > 60000
+    ? `editado em ${escapeHtml(formatDateBR(e.updated_at))}` : '';
   const tags = (e.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
   return `
+    ${kicker ? `<p class="post__kicker">${escapeHtml(kicker)}</p>` : ''}
     ${eyebrow ? `<p class="post__eyebrow">${eyebrow}</p>` : ''}
     <h1 class="post__title">${escapeHtml(e.title || 'Sem título')}${e.published === false ? ' <span class="badge">rascunho</span>' : ''}</h1>
-    ${meta.length ? `<p class="post__meta">${meta.join(' · ')}</p>` : ''}
+    ${edited ? `<p class="post__meta">${edited}</p>` : ''}
     ${e.summary ? `<p class="post__lead">${escapeHtml(e.summary)}</p>` : ''}
     <div class="post__body">${renderMarkdownLite(e.content) || emptyBody}</div>
     ${tags ? `<p class="post__tags">${tags}</p>` : ''}`;

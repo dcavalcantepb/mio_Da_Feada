@@ -189,7 +189,7 @@ a.is-current{ background:var(--current); color:var(--violet); font-weight:600; }
   margin:0 0 .5rem; font-family:var(--font-mono); font-size:.72rem; letter-spacing:.13em;
   text-transform:uppercase; color:var(--cyan);
 }
-.post__kicker{ color:var(--sun); }
+.post__kicker{ color:var(--sun); margin-bottom:.25rem; }
 .post__title{
   margin:0 0 .5rem; font-family:var(--font-heading); font-weight:700;
   font-size:clamp(2rem, 5vw, 2.9rem); line-height:1.1; text-wrap:balance;
