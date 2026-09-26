@@ -1,0 +1,8 @@
+# Backups: têm os RASCUNHOS e, depois de abertos, ficam sem criptografia.
+# O repositório é público, então NUNCA devem ser versionados.
+backups/
+backup/
+*.tar.gz
+*.tar.gz.enc
+backup-mio-*.zip
+aberto-*/

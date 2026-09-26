@@ -148,7 +148,23 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in backup.tar.gz.enc -out back
 tar -xzf backup.tar.gz        # cria a pasta backup/ com dados.json e fotos/
 ```
 
-(ele pergunta a senha). **Restaurar** (numa base vazia com o esquema criado, ver
+(ele pergunta a senha). Ou, num passo só, com o script:
+`bash scripts/abrir-backup.sh caminho/do/backup-mio-N.zip` (confere a senha, mostra o
+resumo e apaga o que abriu).
+
+> **Armadilha do Windows:** no Git Bash, o `openssl` termina as linhas com um ``
+> invisível. Se você guardar a senha numa variável (por exemplo com `read` ou `$(...)`),
+> tire-o antes de usar, senão uma senha "idêntica" dá `bad decrypt`:
+> `P=$(printf '%s' "$P" | tr -d '
+')`. Digitar a senha no prompt do `openssl` não tem
+> esse problema. Ao **cadastrar** o segredo, prefira gerar a senha só com letras e números
+> (`openssl rand -hex 16 | tr -d '
+'`) e passá-la por `gh secret set --body "$P"`.
+
+A pasta `backups/` (e `backup/`, `aberto-*/`, `*.tar.gz*`) está no `.gitignore` para que
+nada disso seja versionado por engano: o repositório é público e o backup tem rascunhos.
+
+**Restaurar** (numa base vazia com o esquema criado, ver
 `supabase/schema.sql`):
 
 ```
