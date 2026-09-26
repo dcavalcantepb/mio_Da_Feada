@@ -158,7 +158,7 @@ body.nav-open .nav{ transform:none; visibility:visible; transition:transform .25
 .tree ul{ list-style:none; margin:0; padding:0; }
 .tree__root > .node{ margin-bottom:.6rem; }
 .node:not(.open) > ul{ display:none; }
-.tree__empty{ padding:.3rem 1rem; color:var(--ink-soft); font-size:.95rem; font-style:italic; }
+.tree__empty{ margin:0; padding:.3rem 1rem; color:var(--ink-soft); font-size:.95rem; font-style:italic; }
 
 .row{
   display:flex; align-items:center; gap:.35rem; width:100%; text-align:left;
@@ -179,7 +179,7 @@ button.row:hover, a.row:hover, .row--split:hover{ background:var(--hover); }
 }
 .node.open > .row .caret, .node.open > .row--split .caret{ transform:rotate(45deg); }
 .row--toggle{ color:var(--ink); }
-.row--root.row--toggle{ color:var(--sun); }
+.row--root.row--toggle, a.row--root{ color:var(--sun); }
 a.is-current{ background:var(--current); color:var(--violet); font-weight:600; }
 .row--split a.is-current{ background:none; }
 .row--split:has(a.is-current){ background:var(--current); }

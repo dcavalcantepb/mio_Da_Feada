@@ -4,16 +4,23 @@ Site estático (HTML + CSS + JS puro, sem build) hospedado no GitHub Pages,
 com banco de dados no Supabase. Formato de blog: um episódio por página,
 com um índice em árvore numa barra lateral retrátil.
 
-## As duas páginas
+## As páginas
 
-- **`index.html`** — a leitura. A página inicial mostra o **último episódio
-  publicado** de Campanhas. O botão com o mascote, na borda esquerda,
-  abre e fecha o índice (começa fechado):
-  - **Campanhas** › Campanha › Arco › Sessões (`1 - A chegada`…)
-  - **Tomos do Storyteller** › tomo › subtomo › … (profundidade livre)
+Todas as páginas de leitura têm o **mesmo menu lateral** (retrátil, começa
+fechado; o botão é o mascote, na borda esquerda), com três categorias:
 
-  Endereços: `#s=<id>` (sessão) e `#t=<id>` (tomo). "Entrar", o tema
-  claro/escuro e — só para quem está logado — "Nova entrada" ficam no topo.
+- **Campanhas** › Campanha › Arco › Sessões (`1 - A chegada`…) → `index.html`.
+  A página inicial mostra o **último episódio publicado**. Endereço de uma
+  sessão: `#s=<id>`. O anterior/próximo do fim do post fica dentro da mesma
+  campanha.
+- **Tomos do Storyteller** › árvore de profundidade livre → `tomos.html`.
+  A entrada lista os tomos de nível mais alto. Endereço de um tomo: `#t=<id>`.
+  (`index.html#t=…` redireciona para cá.)
+- **Personagens** → `personagens.html`, seção reservada: por enquanto só
+  mostra "Em breve".
+
+Em tela larga, trocar de página com o menu aberto o mantém aberto.
+
 - **`editor.html`** — o escritório (login obrigatório). Abre **em outra aba**
   a partir de "Nova entrada", para você consultar o episódio anterior enquanto
   escreve. Começa com o seletor **Campanha ⇄ Lore**:
@@ -25,6 +32,9 @@ com um índice em árvore numa barra lateral retrátil.
   Ao lado do formulário fica a prévia ao vivo. Tem **Publicar** / **Salvar
   rascunho**; o que não foi salvo fica guardado no navegador
   (`localStorage`) e o editor oferece restaurar.
+
+Nas páginas de leitura, "Entrar", o tema claro/escuro e — só para quem está
+logado — "Nova entrada" ficam no topo.
 
 ## Banco de dados (Supabase)
 
@@ -62,11 +72,14 @@ Formatação do texto: `**negrito**`, `*itálico*`, `## Subtítulo`, listas com
 ## Arquivos
 
 ```
-index.html   editor.html
+index.html   tomos.html   personagens.html   editor.html
 css/style.css                    paleta "Véu Élfico" (claro/escuro)
 js/supabase-client.js            conexão
 js/render.js                     utilitários, consultas, agrupamento e a postagem
-js/reader.js                     leitura, índice em árvore, login
+js/shell.js                      casca das páginas de leitura: menu, login, árvore, anterior/próximo
+js/reader.js                     leitura das Campanhas (index.html)
+js/tomos.js                      leitura dos Tomos (tomos.html)
+js/personagens.js                seção Personagens ("Em breve")
 js/editor.js                     escritório
 js/theme.js                      tema claro/escuro
 img/mascot.png                   mascote (botão do índice)

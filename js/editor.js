@@ -361,7 +361,7 @@ async function save(publish){
   $('draftBanner').hidden = true;
 
   showToast(publish ? 'Publicado.' : 'Rascunho salvo.',
-    publish ? { href: `index.html#${mode === 'campanha' ? 's' : 't'}=${current.id}`, label: 'Ver no site' } : null);
+    publish ? { href: mode === 'campanha' ? `index.html#s=${current.id}` : `tomos.html#t=${current.id}`, label: 'Ver no site' } : null);
 }
 
 async function removeCurrent(){
