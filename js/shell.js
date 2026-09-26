@@ -166,6 +166,7 @@ function renderTree(){
 async function loadAll(){
   [sessoes, tomos, personagens] = await Promise.all([fetchSessoes(), fetchTomos(), fetchPersonagens()]);
   grupos = groupPersonagens(personagens);
+  setMentionIndex({ sessoes, tomos, personagens });
   groups = groupSessoes(sessoes);
   tomoTree = buildTomoTree(tomos);
   renderTree();

@@ -475,3 +475,37 @@ body[data-section="personagens"] .content{ max-width:50rem; }
 @media (prefers-reduced-motion: reduce){ .tb, .swatch, .tray{ transition:none; animation:none; } .tb:hover, .swatch:hover{ transform:none; } }
 .tbar-hint{ margin:.1rem 0 0; }
 #fContent{ font-size:1.1rem; line-height:1.6; }
+
+/* ============ menções [[Nome]] ============ */
+.mencao{
+  --mc:var(--c-violeta);
+  font-weight:600; color:var(--mc); text-decoration:none; border-radius:4px; padding:0 .14em; margin:0 -.14em;
+  background:linear-gradient(currentColor, currentColor) 0 100% / 100% 1.5px no-repeat;
+  transition:background-size .15s ease, background-color .15s ease;
+}
+.mencao--personagem{ --mc:var(--c-violeta); }
+.mencao--tomo{ --mc:var(--c-turquesa); }
+.mencao--sessao{ --mc:var(--c-ouro); }
+a.mencao:hover, a.mencao:focus-visible{ background-color:color-mix(in srgb, var(--mc) 16%, transparent); background-size:100% 100%; }
+.mencao--x{ color:var(--c-rubi); background:none; border-bottom:1.5px dashed var(--c-rubi); border-radius:0; cursor:help; }
+@media (prefers-reduced-motion: reduce){ .mencao{ transition:none; } }
+
+/* sugestões que aparecem ao digitar [[ no editor */
+.mpop{
+  position:fixed; z-index:40; width:min(24rem, calc(100vw - 1.5rem)); max-height:17rem; overflow:auto; padding:.35rem;
+  border-radius:14px; background:var(--void-2); border:1px solid var(--rule); box-shadow:0 16px 40px var(--shadow);
+  animation:trayIn .14s ease-out;
+}
+.mpop__hint{ margin:0; padding:.5rem .6rem; font-size:.95rem; color:var(--ink-soft); }
+.mitem{ display:flex; align-items:center; gap:.6rem; width:100%; padding:.42rem .6rem; border-radius:9px; text-align:left; font-size:1.02rem; color:var(--ink); }
+.mitem[aria-selected="true"], .mitem:hover{ background:var(--current); }
+.mkind{
+  flex:none; min-width:5.4rem; text-align:center; padding:.08rem .45rem; border-radius:999px;
+  font-family:var(--font-mono); font-size:.6rem; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--mc); border:1px solid color-mix(in srgb, var(--mc) 55%, transparent);
+  background:color-mix(in srgb, var(--mc) 12%, transparent);
+}
+.mkind--personagem{ --mc:var(--c-violeta); } .mkind--tomo{ --mc:var(--c-turquesa); } .mkind--sessao{ --mc:var(--c-ouro); }
+.mname{ min-width:0; overflow-wrap:anywhere; }
+.tb[data-cmd="mention"]{ --hue:var(--c-violeta); }
+@media (prefers-reduced-motion: reduce){ .mpop{ animation:none; } }

@@ -10,6 +10,8 @@ const TABLE = { campanha: 'sessoes', lore: 'tomos', personagem: 'personagens' };
 const KIND = { campanha: 'sessao', lore: 'tomo', personagem: 'personagem' };
 const BUCKET = 'personagens';
 
+MENTION_WARN = true;   // no editor, menção sem página aparece marcada na prévia
+
 let mode = 'campanha';
 let sessoes = [];
 let tomos = [];
@@ -64,6 +66,7 @@ async function loadData(){
     return;
   }
   tomoTree = buildTomoTree(tomos);
+  setMentionIndex({ sessoes, tomos, personagens });
   refreshDatalists();
   refreshParentSelect();
   renderExisting();

@@ -17,6 +17,7 @@
     ol: svg('<path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 5.5 5.5 5v4.5"/><path d="M4 9.5h3"/><path d="M4 14.5c1-1 2.5-.8 2.5.3 0 1.3-2.5 1.7-2.5 3h3"/>'),
     quote: svg('<path d="M9 7H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v-2H6"/><path d="M9 14v1a3 3 0 0 1-3 3"/><path d="M19 7h-3a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v-2h-3"/><path d="M19 14v1a3 3 0 0 1-3 3"/>'),
     hr: svg('<path d="M3 12h5M16 12h5"/><path d="m12 8 1.6 4-1.6 4-1.6-4z"/>'),
+    mention: svg('<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>'),
     link: svg('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>'),
     spoiler: svg('<path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4 9.5 6a12 12 0 0 1-2.6 3.4"/><path d="M6.2 6.9A12 12 0 0 0 2.5 12c1 2 4.5 6 9.5 6a9.7 9.7 0 0 0 3.4-.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
     clear: svg('<path d="m7 21-4-4a2 2 0 0 1 0-2.8l10-10a2 2 0 0 1 2.8 0l4 4a2 2 0 0 1 0 2.8L11 21"/><path d="M7 21h14"/><path d="m6 13 5 5"/>')
@@ -31,6 +32,7 @@
     ['mark', 'Marca-texto', ICON.mark], ['color', 'Cor do texto', '<span class="tb__a">A</span>'], 'sep',
     ['ul', 'Lista de marcadores', ICON.ul], ['ol', 'Lista numerada', ICON.ol],
     ['quote', 'Citação', ICON.quote], ['hr', 'Divisor', ICON.hr], 'sep',
+    ['mention', 'Menção: link para um personagem, tomo ou sessão', ICON.mention],
     ['link', 'Link', ICON.link], ['spoiler', 'Spoiler: o leitor clica para revelar', ICON.spoiler], 'sep',
     ['clear', 'Limpar formatação', ICON.clear]
   ];
@@ -170,11 +172,19 @@
     replace(s, e, out, urlStart, urlStart + 'https://'.length);   // deixa o endereço selecionado para colar por cima
   }
 
+  /* botão de menção: abre "[[" no cursor (ou em volta da seleção) e mostra as sugestões */
+  function mentionTool(){
+    const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd, sel = v.slice(s, e);
+    if(sel){ replace(s, e, `[[${sel}]]`, s + 2, s + 2 + sel.length); return; }
+    replace(s, e, '[[', s + 2, s + 2);
+  }
+
   function clearFormat(){
     let [s, e] = [ta.selectionStart, ta.selectionEnd];
     if(s === e){ [s, e] = lineRange(); }
     const clean = t => t
       .replace(/\[cor=[a-z]+\]|\[\/cor\]/g, '')
+      .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, nome, texto) => texto || nome)
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
       .replace(/\|\||==|~~|\*\*|__/g, '')
       .replace(/\*(.+?)\*/g, '$1')
@@ -193,7 +203,7 @@
     strike: () => wrapInline('~~', '~~', 'riscado'),
     mark: () => wrapInline('==', '==', 'destaque'),
     ul: () => lineTool('ul'), ol: () => lineTool('ol'), quote: () => lineTool('quote'),
-    hr: divider, link,
+    hr: divider, link, mention: mentionTool,
     spoiler: () => wrapInline('||', '||', 'texto escondido'),
     clear: clearFormat
   };
@@ -219,5 +229,116 @@
     const k = e.key.toLowerCase();
     const cmd = { b: 'bold', i: 'italic', u: 'underline' }[k];
     if(cmd){ e.preventDefault(); RUN[cmd](); }
+  });
+
+  /* ---------- sugestões de menção ao digitar [[ ---------- */
+  const pop = document.createElement('div');
+  pop.className = 'mpop';
+  pop.hidden = true;
+  pop.setAttribute('role', 'listbox');
+  pop.setAttribute('aria-label', 'Sugestões de menção');
+  document.body.appendChild(pop);
+  let items = [], active = 0, trigger = null;   // trigger: { start, query }
+
+  const norm = t => (typeof mentionKey === 'function' ? mentionKey(t) : String(t).toLowerCase());
+  const closePop = () => { pop.hidden = true; trigger = null; };
+
+  /* posição do cursor dentro do textarea, medida com uma cópia invisível do texto */
+  function caretXY(){
+    const cs = getComputedStyle(ta), m = document.createElement('div');
+    ['fontFamily','fontSize','fontWeight','fontStyle','letterSpacing','wordSpacing','textIndent','lineHeight','tabSize',
+     'paddingTop','paddingRight','paddingBottom','paddingLeft','borderTopWidth','borderRightWidth','borderBottomWidth',
+     'borderLeftWidth','boxSizing'].forEach(k => { m.style[k] = cs[k]; });
+    m.style.cssText += ';position:absolute;visibility:hidden;top:0;left:-9999px;white-space:pre-wrap;overflow-wrap:break-word;';
+    m.style.width = ta.offsetWidth + 'px';
+    m.textContent = ta.value.slice(0, ta.selectionStart);
+    const mark = document.createElement('span');
+    mark.textContent = '\u200b';
+    m.appendChild(mark);
+    document.body.appendChild(m);
+    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+    const r = ta.getBoundingClientRect();
+    const out = { x: r.left + mark.offsetLeft, y: r.top + mark.offsetTop - ta.scrollTop, lh };
+    document.body.removeChild(m);
+    return out;
+  }
+
+  function renderPop(){
+    if(!items.length){
+      pop.innerHTML = `<p class="mpop__hint">Nada com esse nome. A menção fica sem link até existir uma página assim.</p>`;
+      return;
+    }
+    pop.innerHTML = items.map((it, i) =>
+      `<button type="button" class="mitem" role="option" data-i="${i}" aria-selected="${i === active}">` +
+      `<span class="mkind mkind--${it.kind}">${MENTION_KINDS[it.kind]}</span><span class="mname">${escapeHtml(it.name)}</span></button>`
+    ).join('');
+    const cur = pop.querySelector('[aria-selected="true"]');
+    if(cur) cur.scrollIntoView({ block: 'nearest' });
+  }
+
+  function placePop(){
+    const c = caretXY();
+    pop.hidden = false;
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    let left = Math.min(c.x, window.innerWidth - w - 8);
+    let top = c.y + c.lh + 4;
+    if(top + h > window.innerHeight - 8) top = Math.max(8, c.y - h - 4);   // sem espaço embaixo: abre por cima
+    pop.style.left = Math.max(8, left) + 'px';
+    pop.style.top = top + 'px';
+  }
+
+  /* olha o texto antes do cursor: há um "[[" aberto, ainda sem "]]"? */
+  function updateMention(){
+    if(ta.selectionStart !== ta.selectionEnd){ closePop(); return; }
+    const before = ta.value.slice(0, ta.selectionStart);
+    const m = /\[\[([^\[\]\n|]*)$/.exec(before);
+    if(!m){ closePop(); return; }
+    const q = norm(m[1]);
+    const hits = (typeof MENTION_LIST !== 'undefined' ? MENTION_LIST : [])
+      .map(it => ({ it, k: norm(it.name) }))
+      .filter(x => !q || x.k.includes(q))
+      .sort((a, b) => (b.k.startsWith(q) - a.k.startsWith(q)))
+      .slice(0, 8).map(x => x.it);
+    trigger = { start: before.length - m[0].length, query: m[1] };
+    items = hits;
+    active = 0;
+    renderPop();
+    placePop();
+  }
+
+  function acceptMention(i){
+    const it = items[i];
+    if(!it || !trigger) return;
+    const end = ta.selectionStart;
+    const text = `[[${it.name}]]`;
+    replace(trigger.start, end, text, trigger.start + text.length, trigger.start + text.length);
+    closePop();
+  }
+
+  ta.addEventListener('input', updateMention);
+  ta.addEventListener('click', updateMention);
+  ta.addEventListener('blur', () => setTimeout(() => { if(document.activeElement !== ta) closePop(); }, 120));
+  ta.addEventListener('scroll', () => { if(!pop.hidden) placePop(); });
+  window.addEventListener('resize', () => { if(!pop.hidden) placePop(); });
+  ta.addEventListener('keydown', e => {
+    if(pop.hidden) return;
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      if(!items.length) return;
+      e.preventDefault();
+      active = (active + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length;
+      renderPop();
+    } else if((e.key === 'Enter' || e.key === 'Tab') && items.length){
+      e.preventDefault();
+      acceptMention(active);
+    } else if(e.key === 'Escape'){
+      e.preventDefault();
+      e.stopPropagation();
+      closePop();
+    }
+  }, true);
+  pop.addEventListener('mousedown', e => e.preventDefault());   // não tira o foco do texto
+  pop.addEventListener('click', e => {
+    const b = e.target.closest('.mitem');
+    if(b) acceptMention(+b.dataset.i);
   });
 })();

@@ -25,10 +25,49 @@ const TEXT_COLORS = [
 ];
 const TEXT_COLOR_NAMES = new Set(TEXT_COLORS.map(c => c[0]));
 
+/* ---------- menções: [[Nome]] e [[Nome|texto exibido]] ----------
+   Viram link para o personagem, tomo ou sessão de mesmo nome (sem diferenciar
+   maiúsculas nem acentos). Se houver nomes repetidos, vale a ordem
+   personagem > tomo > sessão. Sem correspondência, o leitor vê só o texto; no
+   editor (MENTION_WARN) a menção sem página aparece marcada. O índice é
+   montado pelas páginas depois de carregar os dados (setMentionIndex). */
+const MENTION_RE = /\[\[([^\[\]|\n]+?)(?:\|([^\[\]\n]+?))?\]\]/g;
+const MENTION_KINDS = { personagem: 'Personagem', tomo: 'Tomo', sessao: 'Sessão' };
+const mentionKey = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+let MENTION_INDEX = new Map();
+let MENTION_LIST = [];        // {kind, name, href}, para as sugestões do editor
+let MENTION_WARN = false;
+
+function setMentionIndex({ sessoes = [], tomos = [], personagens = [] }){
+  const map = new Map(), list = [];
+  const add = (kind, name, href) => {
+    const k = mentionKey(name || '');
+    if(!k) return;
+    list.push({ kind, name, href });
+    if(!map.has(k)) map.set(k, { kind, name, href });
+  };
+  personagens.forEach(p => add('personagem', p.name, `personagens.html#p=${p.id}`));
+  tomos.forEach(t => add('tomo', t.title, `tomos.html#t=${t.id}`));
+  sessoes.forEach(x => add('sessao', x.title, `index.html#s=${x.id}`));
+  MENTION_INDEX = map;
+  MENTION_LIST = list;
+}
+
+function mentionHtml(target, label){
+  const text = escapeHtml((label || target).trim());
+  const hit = MENTION_INDEX.get(mentionKey(target));
+  if(hit){
+    return `<a class="mencao mencao--${hit.kind}" href="${hit.href}" title="${MENTION_KINDS[hit.kind]}: ${escapeHtml(hit.name)}">${text}</a>`;
+  }
+  return MENTION_WARN
+    ? `<span class="mencao mencao--x" title="Não achei &quot;${escapeHtml(target.trim())}&quot;: confira o nome">${text}</span>`
+    : text;
+}
+
 /* Formatação do texto das entradas. As marcas ficam legíveis no que se digita:
      # Título 1   ## Título 2   ### Título 3
      **negrito**  *itálico*  __sublinhado__  ~~riscado~~  ==marca-texto==
-     [cor=ouro]texto[/cor]   ||spoiler||   [texto](https://link)
+     [cor=ouro]texto[/cor]   ||spoiler||   [texto](https://link)   [[Nome]]
      - marcador   1. numerada   > citação   ---  (divisor)
    Linha em branco separa parágrafos. Tudo passa por escapeHtml antes de virar
    HTML, então só as marcas acima produzem tags. */
@@ -78,7 +117,11 @@ function renderMarkdownLite(raw){
      _ e * dentro do endereço não sejam lidos como formatação. */
   function inline(s){
     const links = [];
-    let t = escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
+    let t = String(s).replace(MENTION_RE, (_, target, label) => {
+      links.push(mentionHtml(target, label));
+      return `\u0000${links.length - 1}\u0000`;
+    });
+    t = escapeHtml(t).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
       links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
       return `\u0000${links.length - 1}\u0000`;
     });

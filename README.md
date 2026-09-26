@@ -105,12 +105,72 @@ As marcas ficam no próprio texto (texto puro no banco); o motor está em
 | Cor | `[cor=ouro]texto[/cor]` (ouro, brasa, rubi, rosa, violeta, ceu, turquesa, verde) |
 | Spoiler | `\|\|texto\|\|` |
 | Link | `[texto](https://endereço)` (só http/https) |
+| Menção | `[[Nome]]` ou `[[Nome\|texto exibido]]` |
 | Listas | `- item`  e  `1. item` |
 | Citação / divisor | `> fala`  e  `---` |
+
+**Menções.** `[[Soryenn Sakhari]]` vira link para o personagem, tomo ou sessão de
+mesmo nome (sem diferenciar maiúsculas nem acentos; se o nome se repetir, vale
+personagem > tomo > sessão). Roxo = personagem, turquesa = tomo, ouro = sessão.
+No editor, digitar `[[` abre a lista de sugestões (setas, Enter/Tab para aceitar,
+Esc para fechar), e há o botão **@** na barra. Uma menção sem página aparece
+marcada em vermelho pontilhado só na prévia do editor; para o leitor vira texto
+simples. Como o link segue o *nome*, renomear uma entrada desfaz as menções a ela.
 
 As cores têm um tom para o tema claro e outro para o escuro (`--c-*` em
 `css/style.css`), todos com contraste mínimo de 4,5:1. Todo texto é escapado
 antes de virar HTML: só as marcas acima geram tags.
+
+## Backup automático
+
+Todo domingo (e quando você pedir), o GitHub Actions (`.github/workflows/backup.yml`)
+baixa as três tabelas **com os rascunhos** e as fotos, compacta, **criptografa**
+(AES-256) e guarda como arquivo da execução por **90 dias** (uns três meses de
+semanais). Como o repositório é público, o arquivo só sai criptografado: sem a
+senha, ninguém lê nada.
+
+**Configuração (uma vez):** GitHub > repositório > Settings > Secrets and variables >
+Actions > *New repository secret*:
+
+| Segredo | O que é |
+|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase > Project Settings > API Keys > chave `service_role` (ou a "secret", nas chaves novas). Nunca vai para o código. |
+| `BACKUP_PASSPHRASE` | Uma frase longa inventada por você. **Guarde num gerenciador de senhas: sem ela os backups não abrem.** |
+
+Para testar na hora: aba **Actions > Backup semanal > Run workflow**. Se faltar um
+segredo, a execução falha e avisa qual.
+
+**Baixar e abrir:** na execução, em *Artifacts*, baixe o `.zip` (traz o
+`backup.tar.gz.enc`). No Git Bash ou WSL (que têm `openssl`):
+
+```
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in backup.tar.gz.enc -out backup.tar.gz
+tar -xzf backup.tar.gz        # cria a pasta backup/ com dados.json e fotos/
+```
+
+(ele pergunta a senha). **Restaurar** (numa base vazia com o esquema criado, ver
+`supabase/schema.sql`):
+
+```
+node scripts/restore.mjs backup            # só simula e mostra o que faria
+SUPABASE_SERVICE_ROLE_KEY=... node scripts/restore.mjs backup --apply
+```
+
+O restaurador mantém os ids, não apaga nada e, no fim, mostra 3 linhas de SQL para
+ajustar os contadores de id. Para restaurar em **outro projeto**, defina também
+`SUPABASE_URL`.
+
+**Backup local (OneDrive):** o mesmo script roda no seu computador, sem criptografia:
+`SUPABASE_SERVICE_ROLE_KEY=... node scripts/backup.mjs "C:\Users\danil\OneDrive\Backups\mio"`.
+(O botão **Backup** do editor continua baixando um `.json` só com as tabelas
+publicadas e não inclui as fotos.)
+
+**Limites que vale saber:**
+- O GitHub **desativa agendamentos de repositórios públicos após 60 dias sem
+  atividade** (ele avisa por e-mail antes). Enquanto você for mexendo no site, não
+  é problema; numa pausa longa, reative em Actions.
+- Se o backup falhar (chave revogada, projeto pausado…), o GitHub manda e-mail.
+- Nunca guarde `dados.json` sem criptografia no repositório: ele tem os rascunhos.
 
 ## Arquivos
 
@@ -124,7 +184,11 @@ js/reader.js                     leitura das Campanhas (index.html)
 js/tomos.js                      leitura dos Tomos (tomos.html)
 js/personagens.js                leitura dos Personagens (personagens.html)
 js/editor.js                     escritório
-js/toolbar.js                    barra de ferramentas de texto do editor
+js/toolbar.js                    barra de ferramentas de texto do editor + sugestões de menção
+scripts/backup.mjs               backup das tabelas e fotos (usado pelo Actions)
+scripts/restore.mjs              restaura um backup
+supabase/schema.sql              esquema do banco (para recriar o projeto)
+.github/workflows/backup.yml     backup semanal criptografado
 js/theme.js                      tema claro/escuro
 img/mascot.png                   mascote (botão do índice)
 ```
