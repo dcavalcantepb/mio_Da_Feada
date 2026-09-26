@@ -83,8 +83,34 @@ de 300 anos"). As fotos ficam no **Storage**, bucket público `personagens`
 4. **Backup** baixa um `.json` com as três tabelas, só como segurança extra
    (as fotos ficam no Storage e não entram no arquivo).
 
-Formatação do texto: `**negrito**`, `*itálico*`, `## Subtítulo`, listas com
-`- item`, linha em branco entre parágrafos.
+### Barra de ferramentas de texto
+
+No editor, acima do campo de texto (o mesmo nos três modos: Texto da Campanha,
+Texto da Lore e História do Personagem), há uma barra com: desfazer/refazer,
+**H1/H2/H3**, **negrito** (Ctrl+B), *itálico* (Ctrl+I), sublinhado (Ctrl+U),
+riscado, marca-texto, **cor do texto** (8 cores), lista de marcadores, lista
+numerada, citação, divisor, link, **spoiler** (o leitor clica para revelar) e
+limpar formatação. Clicar de novo numa ferramenta já aplicada a desliga.
+Resumo e Bio são texto puro, sem formatação.
+
+As marcas ficam no próprio texto (texto puro no banco); o motor está em
+`renderMarkdownLite()` (`js/render.js`) e a barra em `js/toolbar.js`:
+
+| Efeito | Marca |
+|---|---|
+| Títulos | `# H1`  `## H2`  `### H3` (no início da linha) |
+| Negrito / itálico | `**texto**`  `*texto*` |
+| Sublinhado / riscado | `__texto__`  `~~texto~~` |
+| Marca-texto | `==texto==` |
+| Cor | `[cor=ouro]texto[/cor]` (ouro, brasa, rubi, rosa, violeta, ceu, turquesa, verde) |
+| Spoiler | `\|\|texto\|\|` |
+| Link | `[texto](https://endereço)` (só http/https) |
+| Listas | `- item`  e  `1. item` |
+| Citação / divisor | `> fala`  e  `---` |
+
+As cores têm um tom para o tema claro e outro para o escuro (`--c-*` em
+`css/style.css`), todos com contraste mínimo de 4,5:1. Todo texto é escapado
+antes de virar HTML: só as marcas acima geram tags.
 
 ## Arquivos
 
@@ -98,6 +124,7 @@ js/reader.js                     leitura das Campanhas (index.html)
 js/tomos.js                      leitura dos Tomos (tomos.html)
 js/personagens.js                leitura dos Personagens (personagens.html)
 js/editor.js                     escritório
+js/toolbar.js                    barra de ferramentas de texto do editor
 js/theme.js                      tema claro/escuro
 img/mascot.png                   mascote (botão do índice)
 ```

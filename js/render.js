@@ -17,32 +17,95 @@ function escapeHtml(str){
   }[c]));
 }
 
-/* Markdown bem enxuto: parágrafos, **negrito**, *itálico*, ## subtítulo, listas "- item" */
+/* Cores de texto disponíveis (nomes usados na marca [cor=nome]…[/cor]).
+   Cada uma tem um tom para o tema claro e outro para o escuro (style.css). */
+const TEXT_COLORS = [
+  ['ouro', 'Ouro'], ['brasa', 'Brasa'], ['rubi', 'Rubi'], ['rosa', 'Rosa'],
+  ['violeta', 'Violeta'], ['ceu', 'Céu'], ['turquesa', 'Turquesa'], ['verde', 'Verde']
+];
+const TEXT_COLOR_NAMES = new Set(TEXT_COLORS.map(c => c[0]));
+
+/* Formatação do texto das entradas. As marcas ficam legíveis no que se digita:
+     # Título 1   ## Título 2   ### Título 3
+     **negrito**  *itálico*  __sublinhado__  ~~riscado~~  ==marca-texto==
+     [cor=ouro]texto[/cor]   ||spoiler||   [texto](https://link)
+     - marcador   1. numerada   > citação   ---  (divisor)
+   Linha em branco separa parágrafos. Tudo passa por escapeHtml antes de virar
+   HTML, então só as marcas acima produzem tags. */
 function renderMarkdownLite(raw){
-  const text = String(raw ?? '').replace(/\r\n/g, '\n').trim();
-  if(!text) return '';
-  const blocks = text.split(/\n\s*\n/);
-  let html = '';
-  for(const block of blocks){
-    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
-    if(lines.length && lines.every(l => l.startsWith('- '))){
-      html += '<ul>' + lines.map(l => `<li>${inline(l.slice(2))}</li>`).join('') + '</ul>';
-    } else if(/^##\s+/.test(lines[0] || '')){
-      html += `<h2>${inline(lines[0].replace(/^##\s+/, ''))}</h2>`;
-      if(lines.length > 1) html += `<p>${lines.slice(1).map(inline).join('<br>')}</p>`;
-    } else {
-      html += `<p>${lines.map(inline).join('<br>')}</p>`;
+  const lines = String(raw ?? '').replace(/\r\n/g, '\n').trim().split('\n');
+  if(lines.length === 1 && !lines[0]) return '';
+
+  const out = [];
+  let para = [], list = null, quote = [];
+  const flush = () => {
+    if(para.length){ out.push(`<p>${para.map(inline).join('<br>')}</p>`); para = []; }
+    if(list){ out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join('')}</${list.tag}>`); list = null; }
+    if(quote.length){ out.push(`<blockquote><p>${quote.map(inline).join('<br>')}</p></blockquote>`); quote = []; }
+  };
+
+  for(const rawLine of lines){
+    const line = rawLine.trim();
+    let m;
+    if(!line){ flush(); }
+    else if(/^-{3,}$/.test(line)){ flush(); out.push('<div class="md-hr" role="separator"><span>✦</span></div>'); }
+    else if((m = line.match(/^(#{1,3})\s+(.+)$/))){
+      flush();
+      const n = m[1].length;   // # → h2, ## → h3, ### → h4 (o título da página já é o h1)
+      out.push(`<h${n + 1} class="md-h${n}">${inline(m[2])}</h${n + 1}>`);
+    }
+    else if((m = line.match(/^>\s?(.*)$/))){
+      if(para.length || list) flush();
+      quote.push(m[1]);
+    }
+    else if((m = line.match(/^(?:-|\*)\s+(.+)$/)) && !/^\*\*/.test(line)){
+      if(para.length || quote.length || (list && list.tag !== 'ul')) flush();
+      (list = list || { tag: 'ul', items: [] }).items.push(m[1]);
+    }
+    else if((m = line.match(/^\d+[.)]\s+(.+)$/))){
+      if(para.length || quote.length || (list && list.tag !== 'ol')) flush();
+      (list = list || { tag: 'ol', items: [] }).items.push(m[1]);
+    }
+    else {
+      if(list || quote.length) flush();
+      para.push(line);
     }
   }
-  return html;
+  flush();
+  return out.join('');
 
+  /* Marcas dentro da linha. Os links saem antes (viram marcadores) para que
+     _ e * dentro do endereço não sejam lidos como formatação. */
   function inline(s){
-    let out = escapeHtml(s);
-    out = out.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    out = out.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    return out;
+    const links = [];
+    let t = escapeHtml(s).replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, label, url) => {
+      links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
+      return `\u0000${links.length - 1}\u0000`;
+    });
+    t = t.replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" role="button" tabindex="0" aria-pressed="false" title="Spoiler: clique para revelar">$1</span>');
+    t = t.replace(/\[cor=([a-z]+)\](.+?)\[\/cor\]/g, (all, name, txt) =>
+      TEXT_COLOR_NAMES.has(name) ? `<span class="c-${name}">${txt}</span>` : all);
+    t = t.replace(/==(.+?)==/g, '<mark class="md-mark">$1</mark>');
+    t = t.replace(/~~(.+?)~~/g, '<s>$1</s>');
+    t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    t = t.replace(/__(.+?)__/g, '<u>$1</u>');
+    t = t.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    return t.replace(/\u0000(\d+)\u0000/g, (_, i) => links[+i]);
   }
 }
+
+/* Spoiler: clique (ou Enter/Espaço) revela e esconde de novo. Vale em todas as
+   páginas que carregam este arquivo, inclusive na prévia do editor. */
+document.addEventListener('click', e => {
+  const s = e.target.closest('.spoiler');
+  if(s){ const open = s.classList.toggle('is-open'); s.setAttribute('aria-pressed', String(open)); }
+});
+document.addEventListener('keydown', e => {
+  if((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('spoiler')){
+    e.preventDefault();
+    e.target.click();
+  }
+});
 
 function formatDate(iso){
   if(!iso) return '';

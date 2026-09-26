@@ -141,10 +141,12 @@
         <label class="field" data-except="personagem">Resumo
           <textarea id="fSummary" rows="2"></textarea>
         </label>
-        <label class="field"><span id="lblContent">Texto</span>
+        <div class="field">
+          <label for="fContent" id="lblContent">Texto</label>
+          <div id="toolbarMount"></div>
           <textarea id="fContent" rows="18"></textarea>
-        </label>
-        <p class="form__hint">Formatação: <code>**negrito**</code>, <code>*itálico*</code>, <code>## Subtítulo</code>, listas com <code>- item</code>. Linha em branco separa parágrafos.</p>
+        </div>
+        <p class="form__hint">Selecione um trecho e clique numa ferramenta (ou use Ctrl+B, Ctrl+I, Ctrl+U). As marcas ficam no texto, como <code>**negrito**</code>, e a prévia mostra o resultado. Linha em branco separa parágrafos.</p>
 
         <div class="form__actions">
           <button class="btn btn--primary" type="button" id="btnPrimary">Publicar</button>
@@ -172,5 +174,6 @@
 <script src="js/supabase-client.js"></script>
 <script src="js/render.js"></script>
 <script src="js/editor.js"></script>
+<script src="js/toolbar.js"></script>
 </body>
 </html>
