@@ -87,8 +87,8 @@ de 300 anos"). As fotos ficam no **Storage**, bucket público `personagens`
 
 No editor, acima do campo de texto (o mesmo nos três modos: Texto da Campanha,
 Texto da Lore e História do Personagem), há uma barra com: desfazer/refazer,
-**H1/H2/H3**, **negrito** (Ctrl+B), *itálico* (Ctrl+I), sublinhado (Ctrl+U),
-riscado, marca-texto, **cor do texto** (8 cores), lista de marcadores, lista
+**H1/H2/H3**, **alinhamento** (esquerda, centralizado, direita, justificado),
+**negrito** (Ctrl+B), *itálico* (Ctrl+I), sublinhado (Ctrl+U), riscado, marca-texto, **cor do texto** (8 cores), lista de marcadores, lista
 numerada, citação, divisor, link, **spoiler** (o leitor clica para revelar) e
 limpar formatação. Clicar de novo numa ferramenta já aplicada a desliga.
 Resumo e Bio são texto puro, sem formatação.
@@ -108,6 +108,7 @@ As marcas ficam no próprio texto (texto puro no banco); o motor está em
 | Menção | `[[Nome]]` ou `[[Nome\|texto exibido]]` |
 | Listas | `- item`  e  `1. item` |
 | Citação / divisor | `> fala`  e  `---` |
+| Alinhamento | `{centro}texto`, `{direita}texto`, `{justificado}texto` no começo da linha (também antes de `#` e `>`). `{esquerda}` é o padrão; o botão "esquerda" só tira o alinhamento. Vale para parágrafo, título e citação; em listas é ignorado. |
 
 **Menções.** `[[Soryenn Sakhari]]` vira link para o personagem, tomo ou sessão de
 mesmo nome (sem diferenciar maiúsculas nem acentos; se o nome se repetir, vale

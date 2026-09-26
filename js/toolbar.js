@@ -20,13 +20,19 @@
     mention: svg('<circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>'),
     link: svg('<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>'),
     spoiler: svg('<path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4 9.5 6a12 12 0 0 1-2.6 3.4"/><path d="M6.2 6.9A12 12 0 0 0 2.5 12c1 2 4.5 6 9.5 6a9.7 9.7 0 0 0 3.4-.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>'),
-    clear: svg('<path d="m7 21-4-4a2 2 0 0 1 0-2.8l10-10a2 2 0 0 1 2.8 0l4 4a2 2 0 0 1 0 2.8L11 21"/><path d="M7 21h14"/><path d="m6 13 5 5"/>')
+    clear: svg('<path d="m7 21-4-4a2 2 0 0 1 0-2.8l10-10a2 2 0 0 1 2.8 0l4 4a2 2 0 0 1 0 2.8L11 21"/><path d="M7 21h14"/><path d="m6 13 5 5"/>'),
+    esquerda: svg('<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>'),
+    centro: svg('<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>'),
+    direita: svg('<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>'),
+    justificado: svg('<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>')
   };
 
   /* [comando, dica, conteúdo do botão] — 'sep' separa os grupos */
   const ITEMS = [
     ['undo', 'Desfazer (Ctrl+Z)', ICON.undo], ['redo', 'Refazer (Ctrl+Y)', ICON.redo], 'sep',
     ['h1', 'Título 1', 'H1'], ['h2', 'Título 2', 'H2'], ['h3', 'Título 3', 'H3'], 'sep',
+    ['esquerda', 'Alinhar à esquerda (tira o alinhamento)', ICON.esquerda], ['centro', 'Centralizar', ICON.centro],
+    ['direita', 'Alinhar à direita', ICON.direita], ['justificado', 'Justificar', ICON.justificado], 'sep',
     ['bold', 'Negrito (Ctrl+B)', '<b>B</b>'], ['italic', 'Itálico (Ctrl+I)', '<i>I</i>'],
     ['underline', 'Sublinhado (Ctrl+U)', '<u>U</u>'], ['strike', 'Riscado', '<s>S</s>'],
     ['mark', 'Marca-texto', ICON.mark], ['color', 'Cor do texto', '<span class="tb__a">A</span>'], 'sep',
@@ -101,8 +107,8 @@
       replace(s, e, inner, s, s + inner.length);
       return;
     }
-    if(sel.includes('\n')){   // marcas valem por linha: envolve cada linha separadamente
-      const out = sel.split('\n').map(l => l.trim() ? open + l + close : l).join('\n');
+    if(sel.includes('\n') || ALIGN_LINE.test(sel)){   // marcas valem por linha: envolve cada linha separadamente
+      const out = sel.split('\n').map(l => { if(!l.trim()) return l; const [al, rest] = splitAlign(l); return al + open + rest + close; }).join('\n');
       replace(s, e, out, s, s + out.length);
       return;
     }
@@ -133,6 +139,9 @@
     return [ls, le];
   }
   const PREFIX = /^(#{1,3}\s+|-\s+|\d+[.)]\s+|>\s?)/;
+  /* alinhamento fica no começo da linha, antes de #, - etc.: {centro}## Título */
+  const ALIGN_LINE = /^\{(esquerda|centro|direita|justificado)\}\s?/;
+  const splitAlign = l => { const m = ALIGN_LINE.exec(l); return m ? [m[0], l.slice(m[0].length)] : ['', l]; };
   const TEST = { h1: /^#\s+/, h2: /^##\s+/, h3: /^###\s+/, ul: /^-\s+/, ol: /^\d+[.)]\s+/, quote: /^>\s?/ };
   const MARK = { h1: () => '# ', h2: () => '## ', h3: () => '### ', ul: () => '- ', ol: n => `${n}. `, quote: () => '> ' };
   const HOLD = { h1: 'Título', h2: 'Título', h3: 'Título', ul: 'item', ol: 'item', quote: 'citação' };
@@ -146,9 +155,33 @@
       return;
     }
     const filled = lines.filter(l => l.trim());
-    const allHave = filled.every(l => TEST[kind].test(l));   // já está assim: tira (liga/desliga)
+    const allHave = filled.every(l => TEST[kind].test(splitAlign(l)[1]));   // já está assim: tira (liga/desliga)
     let n = 0;
-    const out = lines.map(l => l.trim() ? (allHave ? l.replace(PREFIX, '') : MARK[kind](++n) + l.replace(PREFIX, '')) : l).join('\n');
+    const out = lines.map(l => {
+      if(!l.trim()) return l;
+      const [al, rest] = splitAlign(l);   // o alinhamento da linha é preservado
+      return al + (allHave ? rest.replace(PREFIX, '') : MARK[kind](++n) + rest.replace(PREFIX, ''));
+    }).join('\n');
+    replace(ls, le, out, ls, ls + out.length);
+  }
+
+  /* alinhamento das linhas tocadas pela seleção; clicar de novo no mesmo tira; "esquerda" só remove */
+  function alignTool(kind){
+    const [ls, le] = lineRange();
+    const lines = ta.value.slice(ls, le).split('\n');
+    if(!lines.some(l => l.trim())){   // linha vazia: entra com texto de exemplo selecionado
+      if(kind === 'esquerda') return;
+      const pre = `{${kind}}`, hold = 'texto';
+      replace(ls, le, pre + hold, ls + pre.length, ls + pre.length + hold.length);
+      return;
+    }
+    const filled = lines.filter(l => l.trim());
+    const allHave = kind !== 'esquerda' && filled.every(l => splitAlign(l)[0].startsWith(`{${kind}}`));
+    const out = lines.map(l => {
+      if(!l.trim()) return l;
+      const rest = splitAlign(l)[1];
+      return kind === 'esquerda' || allHave ? rest : `{${kind}}` + rest;
+    }).join('\n');
     replace(ls, le, out, ls, ls + out.length);
   }
 
@@ -188,7 +221,7 @@
       .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1')
       .replace(/\|\||==|~~|\*\*|__/g, '')
       .replace(/\*(.+?)\*/g, '$1')
-      .split('\n').map(l => l.replace(PREFIX, '')).join('\n');
+      .split('\n').map(l => splitAlign(l)[1].replace(PREFIX, '')).join('\n');
     const out = clean(ta.value.slice(s, e));
     replace(s, e, out, s, s + out.length);
   }
@@ -205,7 +238,9 @@
     ul: () => lineTool('ul'), ol: () => lineTool('ol'), quote: () => lineTool('quote'),
     hr: divider, link, mention: mentionTool,
     spoiler: () => wrapInline('||', '||', 'texto escondido'),
-    clear: clearFormat
+    clear: clearFormat,
+    esquerda: () => alignTool('esquerda'), centro: () => alignTool('centro'),
+    direita: () => alignTool('direita'), justificado: () => alignTool('justificado')
   };
 
   /* ---------- eventos ---------- */

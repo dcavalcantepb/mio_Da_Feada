@@ -449,6 +449,7 @@ body[data-section="personagens"] .content{ max-width:50rem; }
 .tb[data-cmd="bold"], .tb[data-cmd="italic"], .tb[data-cmd="underline"], .tb[data-cmd="strike"]{ --hue:var(--c-ouro); font-family:var(--font-body); font-size:1.05rem; }
 .tb[data-cmd="mark"]{ --hue:var(--c-ouro); }
 .tb[data-cmd="ul"], .tb[data-cmd="ol"], .tb[data-cmd="quote"]{ --hue:var(--c-turquesa); }
+.tb[data-cmd="esquerda"], .tb[data-cmd="centro"], .tb[data-cmd="direita"], .tb[data-cmd="justificado"]{ --hue:var(--c-brasa); }
 .tb[data-cmd="hr"]{ --hue:var(--c-verde); }
 .tb[data-cmd="link"]{ --hue:var(--c-ceu); }
 .tb[data-cmd="spoiler"]{ --hue:var(--c-rosa); }
@@ -509,3 +510,12 @@ a.mencao:hover, a.mencao:focus-visible{ background-color:color-mix(in srgb, var(
 .mname{ min-width:0; overflow-wrap:anywhere; }
 .tb[data-cmd="mention"]{ --hue:var(--c-violeta); }
 @media (prefers-reduced-motion: reduce){ .mpop{ animation:none; } }
+
+/* ============ alinhamento do texto ============ */
+.post__body .al-centro{ text-align:center; }
+.post__body .al-direita{ text-align:right; }
+.post__body .al-justificado{ text-align:justify; text-justify:inter-word; hyphens:auto; -webkit-hyphens:auto; }
+.post__body .md-h1.al-centro::after{ margin-inline:auto; }
+.post__body .md-h1.al-direita::after{ margin-left:auto; }
+.post__body blockquote.al-centro{ border-left:0; padding:.3em 1.4rem; }
+.post__body blockquote.al-direita{ border-left:0; border-right:3px solid var(--violet); padding:.3em 1.2rem .3em 0; }

@@ -64,11 +64,16 @@ function mentionHtml(target, label){
     : text;
 }
 
+/* Alinhamento: {centro}, {direita}, {justificado} ou {esquerda} no começo da linha (antes de
+   #, > etc.). Vale para o parágrafo, título ou citação; em listas é ignorado. */
+const ALIGN_RE = /^\{(esquerda|centro|direita|justificado)\}\s?/;
+
 /* Formatação do texto das entradas. As marcas ficam legíveis no que se digita:
      # Título 1   ## Título 2   ### Título 3
      **negrito**  *itálico*  __sublinhado__  ~~riscado~~  ==marca-texto==
      [cor=ouro]texto[/cor]   ||spoiler||   [texto](https://link)   [[Nome]]
      - marcador   1. numerada   > citação   ---  (divisor)
+     {centro}texto  {direita}texto  {justificado}texto   (alinhamento do parágrafo/título/citação)
    Linha em branco separa parágrafos. Tudo passa por escapeHtml antes de virar
    HTML, então só as marcas acima produzem tags. */
 function renderMarkdownLite(raw){
@@ -76,26 +81,36 @@ function renderMarkdownLite(raw){
   if(lines.length === 1 && !lines[0]) return '';
 
   const out = [];
-  let para = [], list = null, quote = [];
+  let para = [], paraAlign = null, list = null, quote = [], quoteAlign = null;
+  /* atributo class do alinhamento (esquerda é o padrão, então não precisa de classe) */
+  const alClass = (al, base = '') => {
+    const c = [base, al && al !== 'esquerda' ? `al-${al}` : ''].filter(Boolean).join(' ');
+    return c ? ` class="${c}"` : '';
+  };
   const flush = () => {
-    if(para.length){ out.push(`<p>${para.map(inline).join('<br>')}</p>`); para = []; }
+    if(para.length){ out.push(`<p${alClass(paraAlign)}>${para.map(inline).join('<br>')}</p>`); para = []; paraAlign = null; }
     if(list){ out.push(`<${list.tag}>${list.items.map(i => `<li>${inline(i)}</li>`).join('')}</${list.tag}>`); list = null; }
-    if(quote.length){ out.push(`<blockquote><p>${quote.map(inline).join('<br>')}</p></blockquote>`); quote = []; }
+    if(quote.length){ out.push(`<blockquote${alClass(quoteAlign)}><p>${quote.map(inline).join('<br>')}</p></blockquote>`); quote = []; quoteAlign = null; }
   };
 
   for(const rawLine of lines){
-    const line = rawLine.trim();
+    let line = rawLine.trim();
+    let align = null;                       // {centro} etc. no começo da linha
+    const am = line.match(ALIGN_RE);
+    if(am){ align = am[1]; line = line.slice(am[0].length).trim(); }
     let m;
     if(!line){ flush(); }
     else if(/^-{3,}$/.test(line)){ flush(); out.push('<div class="md-hr" role="separator"><span>✦</span></div>'); }
     else if((m = line.match(/^(#{1,3})\s+(.+)$/))){
       flush();
       const n = m[1].length;   // # → h2, ## → h3, ### → h4 (o título da página já é o h1)
-      out.push(`<h${n + 1} class="md-h${n}">${inline(m[2])}</h${n + 1}>`);
+      out.push(`<h${n + 1}${alClass(align, `md-h${n}`)}>${inline(m[2])}</h${n + 1}>`);
     }
     else if((m = line.match(/^>\s?(.*)$/))){
       if(para.length || list) flush();
+      if(quote.length && align && quoteAlign && align !== quoteAlign) flush();
       quote.push(m[1]);
+      quoteAlign = quoteAlign || align;
     }
     else if((m = line.match(/^(?:-|\*)\s+(.+)$/)) && !/^\*\*/.test(line)){
       if(para.length || quote.length || (list && list.tag !== 'ul')) flush();
@@ -107,7 +122,9 @@ function renderMarkdownLite(raw){
     }
     else {
       if(list || quote.length) flush();
+      if(para.length && align && paraAlign && align !== paraAlign) flush();   // outro alinhamento = novo parágrafo
       para.push(line);
+      paraAlign = paraAlign || align;
     }
   }
   flush();
