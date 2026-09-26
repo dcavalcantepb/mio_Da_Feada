@@ -181,6 +181,14 @@ para e diz o que fazer.
 
 ### Ensaio de restauração (faça uma vez, quando tiver 15 minutos)
 
+> **Já feito em 26/09/2026, e passou:** `schema.sql` rodou do zero num projeto vazio, a
+> restauração trouxe tomos, personagens e fotos com conteúdo idêntico ao do site real
+> (conferido por hash), os `photo_url` foram reescritos para o projeto novo, os contadores
+> de id funcionaram e o site leu o projeto restaurado sem erros. Esse ensaio usou a chave
+> pública com a escrita liberada só no projeto de teste; o caminho com a chave
+> `service_role` foi validado apenas contra um servidor simulado. Refaça o ensaio se
+> `scripts/restore.mjs` ou `supabase/schema.sql` mudarem.
+
 Um backup só vale se a restauração funciona. Este ensaio usa um projeto de teste e **não
 toca no site real**:
 
