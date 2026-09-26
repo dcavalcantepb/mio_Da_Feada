@@ -31,7 +31,8 @@ if(!aplicar){
   process.exit(0);
 }
 if(!KEY){ console.error('\nFalta SUPABASE_SERVICE_ROLE_KEY.'); process.exit(1); }
-const headers = { apikey: KEY, Authorization: `Bearer ${KEY}` };
+/* chave nova (sb_secret_...) vai só em 'apikey'; a antiga service_role (JWT, começa com eyJ) também em 'Authorization' */
+const headers = KEY.startsWith('sb_') ? { apikey: KEY } : { apikey: KEY, Authorization: `Bearer ${KEY}` };
 
 /* 1) fotos primeiro, para as linhas dos personagens já apontarem para arquivos existentes */
 const TIPOS = { '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };

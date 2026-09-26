@@ -19,7 +19,8 @@ if(!KEY){
   console.error('Falta a chave: defina SUPABASE_SERVICE_ROLE_KEY (Supabase > Project Settings > API > service_role).');
   process.exit(1);
 }
-const headers = { apikey: KEY, Authorization: `Bearer ${KEY}` };
+/* chave nova (sb_secret_...) vai só em 'apikey'; a antiga service_role (JWT, começa com eyJ) também em 'Authorization' */
+const headers = KEY.startsWith('sb_') ? { apikey: KEY } : { apikey: KEY, Authorization: `Bearer ${KEY}` };
 
 /* lê a tabela inteira, de 1000 em 1000 linhas */
 async function lerTabela(nome){
