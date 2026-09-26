@@ -48,9 +48,11 @@
       <div class="switch" role="radiogroup" aria-label="Tipo de entrada">
         <input type="radio" name="mode" id="modeCampanha" value="campanha" checked>
         <input type="radio" name="mode" id="modeLore" value="lore">
+        <input type="radio" name="mode" id="modePersonagem" value="personagem">
         <span class="switch__thumb" aria-hidden="true"></span>
         <label for="modeCampanha">Campanha</label>
         <label for="modeLore">Lore</label>
+        <label for="modePersonagem">Personagem</label>
       </div>
       <p class="desk__lock" id="lockNote" hidden>O tipo não muda numa entrada já salva. Para mudar, crie uma nova.</p>
 
@@ -68,8 +70,12 @@
 
     <div class="desk__cols">
       <form class="form" id="entryForm" novalidate>
-        <label class="field">Título
+        <label class="field"><span id="lblTitle">Título</span>
           <input id="fTitle" type="text" autocomplete="off">
+        </label>
+
+        <label class="field" data-only="personagem" hidden>Bio <span class="muted">(uma frase, sob o nome)</span>
+          <input id="fBio" type="text" autocomplete="off" placeholder="ex.: O paladino de Dewi.">
         </label>
 
         <div class="form__row" data-only="campanha">
@@ -99,13 +105,43 @@
         </div>
         <p class="form__hint" data-only="lore" hidden>“Pertence a” escolhe onde este tomo entra na árvore. A posição define a ordem (0, 1, 2…) dentro do mesmo pai.</p>
 
-        <label class="field">Tags (separadas por vírgula)
+        <div class="form__row" data-only="personagem" hidden>
+          <label class="field">Raça
+            <input id="fRace" type="text" autocomplete="off" placeholder="ex.: Elfo">
+          </label>
+          <label class="field">Idade
+            <input id="fAge" type="text" autocomplete="off" placeholder="ex.: 27, ou cerca de 300 anos">
+          </label>
+        </div>
+        <div class="form__row" data-only="personagem" hidden>
+          <label class="field">Local de nascimento
+            <input id="fBirthplace" type="text" autocomplete="off">
+          </label>
+          <label class="field">Classe
+            <input id="fClass" type="text" autocomplete="off" placeholder="ex.: Guerreiro">
+          </label>
+        </div>
+        <label class="field" data-only="personagem" hidden>Afiliação
+          <input id="fAffiliation" type="text" list="dlAffiliations" autocomplete="off" placeholder="ex.: Os Mala Fortuna">
+        </label>
+        <div class="field photo-field" data-only="personagem" hidden>
+          <div class="photo-box" id="photoBox"><span id="photoEmpty">Sem foto</span><img id="photoPreview" alt="" hidden></div>
+          <div class="photo-side">
+            <span>Foto</span>
+            <input class="visually-hidden" id="fPhoto" type="file" accept="image/jpeg,image/png,image/webp">
+            <label class="btn" for="fPhoto" id="btnPhoto">Escolher foto</label>
+            <button class="btn btn--ghost" type="button" id="btnPhotoRemove" hidden>Remover foto</button>
+            <span class="form__hint" id="photoHint">JPG, PNG ou WebP. A imagem é reduzida automaticamente antes de enviar.</span>
+          </div>
+        </div>
+
+        <label class="field" data-except="personagem">Tags (separadas por vírgula)
           <input id="fTags" type="text" autocomplete="off">
         </label>
-        <label class="field">Resumo
+        <label class="field" data-except="personagem">Resumo
           <textarea id="fSummary" rows="2"></textarea>
         </label>
-        <label class="field">Texto
+        <label class="field"><span id="lblContent">Texto</span>
           <textarea id="fContent" rows="18"></textarea>
         </label>
         <p class="form__hint">Formatação: <code>**negrito**</code>, <code>*itálico*</code>, <code>## Subtítulo</code>, listas com <code>- item</code>. Linha em branco separa parágrafos.</p>
@@ -129,6 +165,7 @@
 
 <datalist id="dlCampaigns"></datalist>
 <datalist id="dlArcs"></datalist>
+<datalist id="dlAffiliations"></datalist>
 <div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

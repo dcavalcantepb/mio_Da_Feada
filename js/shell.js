@@ -27,6 +27,8 @@ let sessoes = [];
 let groups = [];
 let tomos = [];
 let tomoTree = buildTomoTree([]);
+let personagens = [];
+let grupos = [];   // personagens agrupados por afiliação
 
 document.getElementById('siteWord').textContent = SITE_INFO.title;
 document.getElementById('siteSub').textContent = SITE_INFO.subtitle;
@@ -97,6 +99,7 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
    leva à página da sua seção. */
 const sessionHref = id => `index.html#s=${id}`;
 const tomoHref = id => `tomos.html#t=${id}`;
+const personagemHref = id => `personagens.html#p=${id}`;
 
 function badge(published){ return published ? '' : ' <span class="badge">rascunho</span>'; }
 
@@ -112,6 +115,16 @@ function groupNode(key, label, depth, inner, extra = ''){
 function leafLink(href, label, depth, published, extra = ''){
   return `<li class="node"><a class="row row--leaf${extra}" style="--d:${depth}" href="${href}" data-hash="${href}">
     <span class="row__label">${escapeHtml(label)}${badge(published)}</span></a></li>`;
+}
+
+function rootNode(key, label, href, inner){
+  const open = openKeys.has(key);
+  return `<li class="node${open ? ' open' : ''}" data-key="${key}">
+    <div class="row row--split row--root" style="--d:0">
+      <button class="caret-btn" type="button" aria-expanded="${open}" aria-label="Expandir ${escapeHtml(label)}"><span class="caret" aria-hidden="true"></span></button>
+      <a class="row__label" href="${href}" data-hash="${href}">${escapeHtml(label)}</a>
+    </div>
+    <ul>${inner}</ul></li>`;
 }
 
 function tomoNode(t, depth){
@@ -138,15 +151,21 @@ function renderTree(){
     ? tomoTree.roots.map(t => tomoNode(t, 1)).join('')
     : '<li class="tree__empty">Nenhum tomo ainda.</li>';
 
+  const pessoas = grupos.length
+    ? grupos.map(g => groupNode(`f:${g.name}`, g.name, 1,
+        g.items.map(p => leafLink(personagemHref(p.id), p.name, 2, p.published)).join(''))).join('')
+    : '<li class="tree__empty">Nenhum personagem ainda.</li>';
+
   els.tree.innerHTML = `<ul class="tree__root">
-    ${groupNode('r:campanhas', 'Campanhas', 0, campanhas, ' row--root')}
-    ${groupNode('r:tomos', 'Tomos do Storyteller', 0, lore, ' row--root')}
-    ${leafLink('personagens.html', 'Personagens', 0, true, ' row--root')}
+    ${rootNode('r:campanhas', 'Campanhas', 'index.html', campanhas)}
+    ${rootNode('r:tomos', 'Tomos do Storyteller', 'tomos.html', lore)}
+    ${rootNode('r:personagens', 'Personagens', 'personagens.html', pessoas)}
   </ul>`;
 }
 
 async function loadAll(){
-  [sessoes, tomos] = await Promise.all([fetchSessoes(), fetchTomos()]);
+  [sessoes, tomos, personagens] = await Promise.all([fetchSessoes(), fetchTomos(), fetchPersonagens()]);
+  grupos = groupPersonagens(personagens);
   groups = groupSessoes(sessoes);
   tomoTree = buildTomoTree(tomos);
   renderTree();

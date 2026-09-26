@@ -1,19 +1,26 @@
-/* Escritório (editor.html). Escreve em duas tabelas do Supabase:
-     Campanha → `sessoes`  (Campanha > Arco > Sessão, com data)
-     Lore     → `tomos`    (árvore: cada tomo aponta para o pai)
+/* Escritório (editor.html). Escreve em três tabelas do Supabase:
+     Campanha   → `sessoes`     (Campanha > Arco > Sessão, com data)
+     Lore       → `tomos`       (árvore: cada tomo aponta para o pai)
+     Personagem → `personagens` (ficha + foto no Storage, bucket "personagens")
    O login é real (Supabase Auth); quem barra escrita de verdade é a RLS
    do banco. Rascunhos não salvos ficam guardados no navegador. */
 
 const $ = id => document.getElementById(id);
-const TABLE = { campanha: 'sessoes', lore: 'tomos' };
-const KIND = { campanha: 'sessao', lore: 'tomo' };
+const TABLE = { campanha: 'sessoes', lore: 'tomos', personagem: 'personagens' };
+const KIND = { campanha: 'sessao', lore: 'tomo', personagem: 'personagem' };
+const BUCKET = 'personagens';
 
 let mode = 'campanha';
 let sessoes = [];
 let tomos = [];
+let personagens = [];
 let tomoTree = buildTomoTree([]);
 let current = null;   // linha já salva que está sendo editada (null = entrada nova)
 let dirty = false;
+
+/* foto do personagem em edição: url = a que já está salva; blob = nova, já reduzida,
+   ainda não enviada; removed = o autor pediu para tirar a foto */
+let photo = { url: null, blob: null, objectUrl: null, removed: false };
 
 /* ============ login ============ */
 $('gateForm').addEventListener('submit', async e => {
@@ -50,7 +57,7 @@ function showDesk(){
 /* ============ dados ============ */
 async function loadData(){
   try{
-    [sessoes, tomos] = await Promise.all([fetchSessoes(), fetchTomos()]);
+    [sessoes, tomos, personagens] = await Promise.all([fetchSessoes(), fetchTomos(), fetchPersonagens()]);
   }catch(err){
     setStatus('erro ao carregar');
     alert('Não consegui carregar as entradas: ' + err.message);
@@ -69,6 +76,7 @@ async function initDesk(){
   const p = new URLSearchParams(location.hash.replace(/^#/, ''));
   if(p.has('sessao')) openEntry('campanha', p.get('sessao'));
   else if(p.has('tomo')) openEntry('lore', p.get('tomo'));
+  else if(p.has('personagem')) openEntry('personagem', p.get('personagem'));
   else newEntry('campanha');
 }
 
@@ -77,11 +85,14 @@ function bindEvents(){
   document.querySelectorAll('input[name="mode"]').forEach(r =>
     r.addEventListener('change', () => { if(r.checked) newModeSwitch(r.value); }));
 
-  ['fTitle','fCampaign','fArc','fSession','fDate','fParent','fPosition','fTags','fSummary','fContent'].forEach(id =>
+  ['fTitle','fCampaign','fArc','fSession','fDate','fParent','fPosition','fTags','fSummary','fContent',
+   'fBio','fRace','fAge','fBirthplace','fClass','fAffiliation'].forEach(id =>
     $(id).addEventListener('input', onEdit));
   $('fSession').addEventListener('input', () => { delete $('fSession').dataset.auto; });
   ['fCampaign','fArc'].forEach(id => $(id).addEventListener('input', () => { refreshDatalists(); suggestSession(); }));
   $('fParent').addEventListener('change', suggestPosition);
+  $('fPhoto').addEventListener('change', onPhotoChosen);
+  $('btnPhotoRemove').addEventListener('click', removePhoto);
 
   $('btnPrimary').addEventListener('click', () => save(true));
   $('btnSecondary').addEventListener('click', () => save(false));
@@ -111,12 +122,17 @@ function newModeSwitch(m){
   checkDraft();
 }
 
-/* ============ modo Campanha ⇄ Lore ============ */
+/* ============ modo Campanha ⇄ Lore ⇄ Personagem ============ */
 function setMode(m){
   mode = m;
   $('modeCampanha').checked = m === 'campanha';
   $('modeLore').checked = m === 'lore';
-  document.querySelectorAll('[data-only]').forEach(el => { el.hidden = el.dataset.only !== m; });
+  $('modePersonagem').checked = m === 'personagem';
+  document.querySelectorAll('[data-only], [data-except]').forEach(el => {
+    el.hidden = el.dataset.only ? el.dataset.only !== m : el.dataset.except === m;
+  });
+  $('lblTitle').textContent = m === 'personagem' ? 'Nome' : 'Título';
+  $('lblContent').textContent = m === 'personagem' ? 'História' : 'Texto';
   refreshParentSelect();
   renderExisting();
   updateChrome();
@@ -125,7 +141,7 @@ function setMode(m){
 
 function updateChrome(){
   const locked = !!current;
-  $('modeCampanha').disabled = $('modeLore').disabled = locked;
+  $('modeCampanha').disabled = $('modeLore').disabled = $('modePersonagem').disabled = locked;
   $('lockNote').hidden = !locked;
   $('btnDelete').hidden = !locked;
   const pub = !!(current && current.published);
@@ -144,6 +160,17 @@ function onEdit(){
 }
 
 function readForm(){
+  if(mode === 'personagem'){
+    const v = id => $(id).value.trim() || null;
+    return {
+      name: $('fTitle').value.trim(),
+      bio: v('fBio'),
+      race: v('fRace'), age: v('fAge'), birthplace: v('fBirthplace'),
+      class: v('fClass'), affiliation: v('fAffiliation'),
+      story: v('fContent'),
+      photo_url: photo.removed ? null : photo.url
+    };
+  }
   const base = {
     title: $('fTitle').value.trim(),
     tags: parseTags($('fTags').value),
@@ -168,6 +195,19 @@ function readForm(){
 }
 
 function applyValues(v){
+  if(mode === 'personagem'){
+    $('fTitle').value = v.name || '';
+    $('fContent').value = v.story || '';
+    $('fBio').value = v.bio || '';
+    $('fRace').value = v.race || '';
+    $('fAge').value = v.age || '';
+    $('fBirthplace').value = v.birthplace || '';
+    $('fClass').value = v.class || '';
+    $('fAffiliation').value = v.affiliation || '';
+    setPhoto(v.photo_url || null);
+    refreshDatalists();
+    return;
+  }
   $('fTitle').value = v.title || '';
   $('fTags').value = (v.tags || []).join(', ');
   $('fSummary').value = v.summary || '';
@@ -187,7 +227,7 @@ function applyValues(v){
 }
 
 function resetFields(){
-  applyValues({ title:'', tags:[], summary:'', content:'', date: todayISO(), position: 0 });
+  applyValues({ title:'', name:'', tags:[], summary:'', content:'', story:'', date: todayISO(), position: 0 });
   if(mode === 'lore') suggestPosition();
 }
 
@@ -205,7 +245,7 @@ function newEntry(m){
 }
 
 function openEntry(m, id){
-  const rows = m === 'campanha' ? sessoes : tomos;
+  const rows = m === 'campanha' ? sessoes : m === 'lore' ? tomos : personagens;
   const row = rows.find(r => String(r.id) === String(id));
   if(!row){ alert('Não encontrei essa entrada. Ela pode ter sido excluída.'); newEntry('campanha'); return; }
   clearTimeout(stashTimer);
@@ -229,6 +269,11 @@ function refreshDatalists(){
     .filter(s => !typed || (s.campaign || '').trim() === typed)
     .map(s => (s.arc || '').trim()).filter(Boolean))];
   $('dlArcs').innerHTML = arcs.map(a => `<option value="${escapeHtml(a)}">`).join('');
+  const affs = [...new Set([
+    ...personagens.map(p => (p.affiliation || '').trim()),
+    ...camps
+  ].filter(Boolean))];
+  $('dlAffiliations').innerHTML = affs.map(a => `<option value="${escapeHtml(a)}">`).join('');
 }
 
 /* sugere o próximo número de sessão do arco escolhido (só em entrada nova) */
@@ -274,6 +319,10 @@ function suggestPosition(){
 /* ============ prévia ============ */
 function updatePreview(){
   const f = readForm();
+  if(mode === 'personagem'){
+    $('preview').innerHTML = renderPerfilHtml(f, photoSrc());
+    return;
+  }
   let crumbs;
   if(mode === 'campanha'){
     crumbs = [f.campaign || NO_CAMPAIGN, f.arc || NO_ARC, f.session != null && !Number.isNaN(f.session) ? `Sessão ${f.session}` : ''];
@@ -326,11 +375,21 @@ function showToast(msg, link){
   toastTimer = setTimeout(() => el.classList.remove('toast--show'), link ? 7000 : 2600);
 }
 
+function siteHref(id){
+  return mode === 'campanha' ? `index.html#s=${id}`
+       : mode === 'lore' ? `tomos.html#t=${id}`
+       : `personagens.html#p=${id}`;
+}
+
 function setBusy(busy){ ['btnPrimary','btnSecondary','btnDelete'].forEach(id => { $(id).disabled = busy; }); }
 
 async function save(publish){
   const f = readForm();
-  if(!f.title){ showToast('Dê um título à entrada.'); $('fTitle').focus(); return; }
+  if(mode === 'personagem' ? !f.name : !f.title){
+    showToast(mode === 'personagem' ? 'Dê um nome ao personagem.' : 'Dê um título à entrada.');
+    $('fTitle').focus();
+    return;
+  }
   if(mode === 'campanha' && !f.date){ showToast('Informe a data da sessão.'); $('fDate').focus(); return; }
   if(current && mode === 'lore' && f.parent_id === current.id){ showToast('Um tomo não pode pertencer a si mesmo.'); return; }
 
@@ -338,20 +397,39 @@ async function save(publish){
   const table = TABLE[mode];
   const oldKey = draftKey();
   setBusy(true);
+
+  /* personagem: a foto nova sobe para o Storage antes de gravar a linha */
+  let uploadedPath = null;
+  if(mode === 'personagem' && photo.blob){
+    try{
+      const up = await uploadPhoto(photo.blob);
+      uploadedPath = up.path;
+      payload.photo_url = up.url;
+    }catch(err){
+      setBusy(false);
+      alert('Não consegui enviar a foto: ' + err.message + '\n\nO seu texto continua no formulário.');
+      return;
+    }
+  }
+
   const q = current
     ? supabaseClient.from(table).update(payload).eq('id', current.id)
     : supabaseClient.from(table).insert(payload);
   const { data, error } = await q.select().single();
   setBusy(false);
   if(error){
+    if(uploadedPath) removePhotoFile(uploadedPath);   // não deixa foto órfã no Storage
     alert('Não consegui salvar: ' + error.message + '\n\nO seu texto continua no formulário e no rascunho local.');
     return;
   }
+  /* trocou ou removeu a foto: apaga o arquivo antigo, que ninguém mais usa */
+  if(mode === 'personagem' && (photo.blob || photo.removed) && photo.url) removePhotoFile(photoPath(photo.url));
 
   try{ localStorage.removeItem(oldKey); }catch(_){}
   clearTimeout(stashTimer);
   await loadData();
-  current = (mode === 'campanha' ? sessoes : tomos).find(r => r.id === data.id) || data;
+  current = (mode === 'campanha' ? sessoes : mode === 'lore' ? tomos : personagens).find(r => r.id === data.id) || data;
+  if(mode === 'personagem') setPhoto(current.photo_url || null);
   dirty = false;
   history.replaceState(null, '', `#${KIND[mode]}=${current.id}`);
   refreshParentSelect();
@@ -361,7 +439,7 @@ async function save(publish){
   $('draftBanner').hidden = true;
 
   showToast(publish ? 'Publicado.' : 'Rascunho salvo.',
-    publish ? { href: mode === 'campanha' ? `index.html#s=${current.id}` : `tomos.html#t=${current.id}`, label: 'Ver no site' } : null);
+    publish ? { href: siteHref(current.id), label: 'Ver no site' } : null);
 }
 
 async function removeCurrent(){
@@ -370,11 +448,12 @@ async function removeCurrent(){
     alert('Este tomo tem subtomos. Mova ou exclua os subtomos antes de excluí-lo.');
     return;
   }
-  if(!confirm(`Excluir "${current.title}" de vez? Isso não pode ser desfeito.`)) return;
+  if(!confirm(`Excluir "${current.title || current.name}" de vez? Isso não pode ser desfeito.`)) return;
   setBusy(true);
   const { error } = await supabaseClient.from(TABLE[mode]).delete().eq('id', current.id);
   setBusy(false);
   if(error){ alert('Não consegui excluir: ' + error.message); return; }
+  if(mode === 'personagem' && current.photo_url) removePhotoFile(photoPath(current.photo_url));
   clearDraft();
   await loadData();
   showToast('Entrada excluída.');
@@ -392,6 +471,10 @@ function renderExisting(){
     list.innerHTML = groupSessoes(sessoes).map(c => c.arcs.map(a =>
       `<div class="existing__group">${escapeHtml(c.name)} › ${escapeHtml(a.name)}</div>` +
       a.items.map(s => item(s, sessionLabel(s), 0)).join('')).join('')).join('');
+  } else if(mode === 'personagem'){
+    if(!personagens.length){ list.innerHTML = '<p class="existing__empty">Nenhum personagem ainda.</p>'; return; }
+    list.innerHTML = groupPersonagens(personagens).map(g =>
+      `<div class="existing__group">${escapeHtml(g.name)}</div>` + g.items.map(p => item(p, p.name, 0)).join('')).join('');
   } else {
     if(!tomos.length){ list.innerHTML = '<p class="existing__empty">Nenhum tomo ainda.</p>'; return; }
     const walk = (nodes, d) => nodes.map(n => item(n, n.title, d) + walk(tomoTree.childrenOf(n.id), d + 1)).join('');
@@ -401,11 +484,103 @@ function renderExisting(){
 
 /* ============ backup ============ */
 function exportBackup(){
-  const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), sessoes, tomos }, null, 2)],
+  const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), sessoes, tomos, personagens }, null, 2)],
     { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `mio-da-feada-backup-${todayISO()}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ============ foto do personagem ============ */
+const photoSrc = () => photo.objectUrl || (photo.removed ? null : photo.url);
+
+function setPhoto(url){
+  if(photo.objectUrl) URL.revokeObjectURL(photo.objectUrl);
+  photo = { url, blob: null, objectUrl: null, removed: false };
+  $('fPhoto').value = '';
+  renderPhotoBox();
+}
+
+function renderPhotoBox(){
+  const src = photoSrc();
+  const img = $('photoPreview');
+  if(src) img.src = src; else img.removeAttribute('src');
+  img.hidden = !src;
+  $('photoEmpty').hidden = !!src;
+  $('btnPhotoRemove').hidden = !src;
+  $('btnPhoto').textContent = src ? 'Trocar foto' : 'Escolher foto';
+}
+
+async function onPhotoChosen(){
+  const file = $('fPhoto').files[0];
+  if(!file) return;
+  try{
+    const blob = await shrinkImage(file);
+    if(photo.objectUrl) URL.revokeObjectURL(photo.objectUrl);
+    photo.blob = blob;
+    photo.objectUrl = URL.createObjectURL(blob);
+    photo.removed = false;
+    renderPhotoBox();
+    onEdit();
+  }catch(err){
+    showToast(err.message);
+  }
+  $('fPhoto').value = '';
+}
+
+function removePhoto(){
+  if(photo.objectUrl) URL.revokeObjectURL(photo.objectUrl);
+  photo.blob = null;
+  photo.objectUrl = null;
+  photo.removed = true;
+  renderPhotoBox();
+  onEdit();
+}
+
+/* Reduz a imagem para no máximo 1000 px no maior lado e comprime (WebP se o
+   navegador permitir; senão JPEG). Fica bem abaixo do limite de 2 MB do bucket. */
+async function shrinkImage(file){
+  if(!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Use uma imagem JPG, PNG ou WebP.');
+  let bmp;
+  try{ bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch(_){ throw new Error('Não consegui abrir essa imagem. Tente outro arquivo.'); }
+  const scale = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bmp.width * scale));
+  canvas.height = Math.max(1, Math.round(bmp.height * scale));
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close?.();
+  let blob = await new Promise(res => canvas.toBlob(res, 'image/webp', 0.86));
+  if(!blob || blob.type !== 'image/webp'){
+    /* JPEG não tem transparência: assenta a imagem sobre um fundo escuro neutro */
+    const flat = document.createElement('canvas');
+    flat.width = canvas.width; flat.height = canvas.height;
+    const fctx = flat.getContext('2d');
+    fctx.fillStyle = '#1B0F3B'; fctx.fillRect(0, 0, flat.width, flat.height);
+    fctx.drawImage(canvas, 0, 0);
+    blob = await new Promise(res => flat.toBlob(res, 'image/jpeg', 0.86));
+  }
+  if(!blob) throw new Error('Não consegui preparar a imagem.');
+  return blob;
+}
+
+async function uploadPhoto(blob){
+  const path = `${crypto.randomUUID()}.${blob.type === 'image/webp' ? 'webp' : 'jpg'}`;
+  const { error } = await supabaseClient.storage.from(BUCKET)
+    .upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
+  if(error) throw new Error(error.message);
+  return { path, url: supabaseClient.storage.from(BUCKET).getPublicUrl(path).data.publicUrl };
+}
+
+/* caminho do arquivo dentro do bucket, a partir da URL pública */
+function photoPath(url){
+  const parts = String(url || '').split(`/${BUCKET}/`);
+  return parts.length > 1 ? decodeURIComponent(parts[parts.length - 1].split('?')[0]) : null;
+}
+
+async function removePhotoFile(path){
+  if(!path) return;
+  try{ await supabaseClient.storage.from(BUCKET).remove([path]); }catch(_){ /* arquivo sobrando não quebra nada */ }
 }

@@ -8,6 +8,7 @@ const SITE_INFO = {
 
 const NO_CAMPAIGN = 'Sem campanha';
 const NO_ARC = 'Sem arco';
+const NO_AFFILIATION = 'Sem afiliação';
 
 /* ---------- texto ---------- */
 function escapeHtml(str){
@@ -82,6 +83,15 @@ async function fetchTomos(){
   const { data, error } = await supabaseClient
     .from('tomos').select('*')
     .order('position', { ascending: true })
+    .order('id', { ascending: true });
+  if(error) throw new Error(error.message);
+  return data;
+}
+
+async function fetchPersonagens(){
+  const { data, error } = await supabaseClient
+    .from('personagens').select('*')
+    .order('created_at', { ascending: true })
     .order('id', { ascending: true });
   if(error) throw new Error(error.message);
   return data;
@@ -173,4 +183,63 @@ function renderPostHtml(e, kind, crumbs, emptyBody = '<p class="muted">Ainda sem
     ${e.summary ? `<p class="post__lead">${escapeHtml(e.summary)}</p>` : ''}
     <div class="post__body">${renderMarkdownLite(e.content) || emptyBody}</div>
     ${tags ? `<p class="post__tags">${tags}</p>` : ''}`;
+}
+
+/* ---------- Personagens ---------- */
+/* Agrupa pela Afiliação, na ordem em que os personagens foram cadastrados
+   (o grupo aparece quando o primeiro membro foi criado; "Sem afiliação" por
+   último). Devolve [{ name, items }]. */
+function groupPersonagens(personagens){
+  const byAff = new Map();
+  for(const p of personagens){
+    const a = (p.affiliation || '').trim() || NO_AFFILIATION;
+    if(!byAff.has(a)) byAff.set(a, []);
+    byAff.get(a).push(p);
+  }
+  return [...byAff.entries()]
+    .map(([name, items]) => ({ name, items }))
+    .sort((x, y) => (x.name === NO_AFFILIATION) - (y.name === NO_AFFILIATION));
+}
+
+const PERFIL_CAMPOS = [
+  ['race', 'Raça'], ['age', 'Idade'], ['birthplace', 'Local de Nascimento'],
+  ['class', 'Classe'], ['affiliation', 'Afiliação']
+];
+
+const SILHUETA = '<svg viewBox="0 0 64 80" fill="currentColor" aria-hidden="true"><circle cx="32" cy="26" r="13"/><path d="M6 80c0-19 11-30 26-30s26 11 26 30z"/></svg>';
+
+/* Foto (ou silhueta, se não houver) — usada na ficha e nos cartões da galeria */
+function perfilFotoHtml(p, src){
+  const url = src !== undefined ? src : p.photo_url;
+  return url
+    ? `<img src="${escapeHtml(url)}" alt="Retrato de ${escapeHtml(p.name || 'personagem')}" loading="lazy">`
+    : `<div class="perfil__vazio">${SILHUETA}</div>`;
+}
+
+/* A ficha em formato de currículo: foto à esquerda dividindo a largura com as
+   características; a história embaixo, na largura toda. `src` sobrepõe a foto
+   (prévia do editor, antes de enviar). */
+function renderPerfilHtml(p, src){
+  const itens = PERFIL_CAMPOS
+    .filter(([k]) => String(p[k] ?? '').trim())
+    .map(([k, label]) => `<div class="perfil__item"><dt>${label}</dt><dd>${escapeHtml(String(p[k]).trim())}</dd></div>`)
+    .join('');
+  const historia = renderMarkdownLite(p.story);
+  return `
+    <div class="perfil">
+      <div class="perfil__topo">
+        <figure class="perfil__foto">${perfilFotoHtml(p, src)}</figure>
+        <div class="perfil__dados">
+          <div class="perfil__cabeca">
+            <h1 class="post__title">${escapeHtml(p.name || 'Sem nome')}${p.published === false ? ' <span class="badge">rascunho</span>' : ''}</h1>
+            ${String(p.bio ?? '').trim() ? `<p class="perfil__bio">${escapeHtml(String(p.bio).trim())}</p>` : ''}
+          </div>
+          ${itens ? `<dl class="perfil__lista">${itens}</dl>` : '<p class="muted">Sem características preenchidas.</p>'}
+        </div>
+      </div>
+      <section class="perfil__historia">
+        <h2>História</h2>
+        <div class="post__body">${historia || '<p class="muted">Ainda sem história.</p>'}</div>
+      </section>
+    </div>`;
 }
