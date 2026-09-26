@@ -1,10 +1,9 @@
 /* ============================================================
    O Mio da Feada — folha de estilo (leitura + editor)
-   Paleta "Véu Élfico": navy quase azul-noite, roxo lavanda prateado,
-   dourado platinado e um fio de gelo-turquesa arcano em detalhes.
-   Duas leituras da mesma paleta: dia (pálida, gélida) e noite (azul-noite
-   profundo). Segue prefers-color-scheme; :root[data-theme] força um lado
-   (ver js/theme.js).
+   Paleta "Véu Élfico": lavanda, dourado platinado e um fio de gelo-turquesa
+   arcano em detalhes. Duas leituras da mesma paleta: dia (pálida, gélida) e
+   noite (roxo profundo, fundo #110728). Segue prefers-color-scheme;
+   :root[data-theme] força um lado (ver js/theme.js).
    ============================================================ */
 
 :root{
@@ -28,26 +27,26 @@
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --void:#0a1128; --void-2:#131c3d; --void-3:#1a2657;
-    --violet:#8f92ee; --magenta:#c9a0e8; --cyan:#6fd6d1; --sun:#cbb673;
-    --ink:#e8ecff; --ink-soft:#a3a9d6;
-    --rule:rgba(232,236,255,.16);
+    --void:#110728; --void-2:#1B0F3B; --void-3:#241650;
+    --violet:#A78BFA; --magenta:#C9A0E8; --cyan:#6FD6D1; --sun:#D9B65D;
+    --ink:#EDE8FF; --ink-soft:#B4A9DC;
+    --rule:#3A2A6B;
     --hover:rgba(201,160,232,.10);
-    --current:rgba(201,160,232,.18);
+    --current:rgba(167,139,250,.20);
     --danger:#ff8f86;
-    --shadow:rgba(4,7,18,.7);
+    --shadow:rgba(4,2,14,.72);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --void:#0a1128; --void-2:#131c3d; --void-3:#1a2657;
-  --violet:#8f92ee; --magenta:#c9a0e8; --cyan:#6fd6d1; --sun:#cbb673;
-  --ink:#e8ecff; --ink-soft:#a3a9d6;
-  --rule:rgba(232,236,255,.16);
+  --void:#110728; --void-2:#1B0F3B; --void-3:#241650;
+  --violet:#A78BFA; --magenta:#C9A0E8; --cyan:#6FD6D1; --sun:#D9B65D;
+  --ink:#EDE8FF; --ink-soft:#B4A9DC;
+  --rule:#3A2A6B;
   --hover:rgba(201,160,232,.10);
-  --current:rgba(201,160,232,.18);
+  --current:rgba(167,139,250,.20);
   --danger:#ff8f86;
-  --shadow:rgba(4,7,18,.7);
+  --shadow:rgba(4,2,14,.72);
   color-scheme:dark;
 }
 
