@@ -155,10 +155,10 @@ resumo e apaga o que abriu).
 > **Armadilha do Windows:** no Git Bash, o `openssl` termina as linhas com um ``
 > invisível. Se você guardar a senha numa variável (por exemplo com `read` ou `$(...)`),
 > tire-o antes de usar, senão uma senha "idêntica" dá `bad decrypt`:
-> `P=$(printf '%s' "$P" | tr -d '
+> `P=$(printf '%s' "$P" | tr -d '
 ')`. Digitar a senha no prompt do `openssl` não tem
 > esse problema. Ao **cadastrar** o segredo, prefira gerar a senha só com letras e números
-> (`openssl rand -hex 16 | tr -d '
+> (`openssl rand -hex 16 | tr -d '
 '`) e passá-la por `gh secret set --body "$P"`.
 
 A pasta `backups/` (e `backup/`, `aberto-*/`, `*.tar.gz*`) está no `.gitignore` para que
@@ -174,7 +174,40 @@ SUPABASE_SERVICE_ROLE_KEY=... node scripts/restore.mjs backup --apply
 
 O restaurador mantém os ids, não apaga nada e, no fim, mostra 3 linhas de SQL para
 ajustar os contadores de id. Para restaurar em **outro projeto**, defina também
-`SUPABASE_URL`.
+`SUPABASE_URL`: nesse caso ele reescreve o `photo_url` de cada personagem para apontar
+para as fotos do projeto de destino. Rodar duas vezes é seguro (as linhas são atualizadas
+pelo id, sem duplicar). Se algo faltar no destino (tabela, bucket, chave errada), ele
+para e diz o que fazer.
+
+### Ensaio de restauração (faça uma vez, quando tiver 15 minutos)
+
+Um backup só vale se a restauração funciona. Este ensaio usa um projeto de teste e **não
+toca no site real**:
+
+1. Em supabase.com, crie um projeto novo e gratuito, por exemplo `mio-ensaio`.
+2. No **SQL Editor** dele, cole o conteúdo de `supabase/schema.sql` e rode. Pode deixar o
+   UUID de exemplo: no ensaio quem escreve é a chave `service_role`, que ignora as regras.
+3. Abra um backup: `bash scripts/abrir-backup.sh caminho/do/backup-mio-N.zip --manter`
+   (a pasta `aberto-…/backup` fica disponível; apague-a depois).
+4. Restaure no projeto de ensaio, com a URL e a chave **dele** (Project Settings > API):
+   ```
+   SUPABASE_URL=https://<ref-do-ensaio>.supabase.co SUPABASE_SERVICE_ROLE_KEY=<chave-do-ensaio> \
+     node scripts/restore.mjs caminho/aberto-…/backup --apply
+   ```
+5. Rode as 3 linhas de SQL que ele mostra no fim.
+6. Confira: no **Table Editor** as contagens batem com o resumo do backup, e uma foto abre
+   pelo `photo_url` do personagem (agora com o endereço do projeto de ensaio).
+7. Apague o projeto de ensaio (Project Settings > General > Delete project) e a pasta `aberto-…`.
+
+### Se o projeto do Supabase for perdido de verdade
+
+1. Crie o projeto novo e, em **Authentication > Users**, o seu usuário (a conta de login
+   **não** vai no backup).
+2. No SQL Editor, rode `supabase/schema.sql` trocando o UUID de exemplo pelo do usuário novo.
+3. Restaure como no ensaio, mas com a URL e a chave do projeto novo.
+4. Troque, em `js/supabase-client.js`, a URL e a chave pública (*publishable*) e envie ao
+   GitHub; atualize o segredo `SUPABASE_SERVICE_ROLE_KEY` do repositório para a chave nova.
+5. Rode **Actions > Backup semanal > Run workflow** para confirmar que o backup volta a funcionar.
 
 **Backup local (OneDrive):** o mesmo script roda no seu computador, sem criptografia:
 `SUPABASE_SERVICE_ROLE_KEY=... node scripts/backup.mjs "C:\Users\danil\OneDrive\Backups\mio"`.
