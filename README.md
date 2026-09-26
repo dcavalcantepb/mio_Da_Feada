@@ -1,98 +1,73 @@
 # O Mio da Feada — crônica das Lendas de Netéria
 
-Site front-end estático (HTML + CSS + JS puro, sem build) hospedado no
-GitHub Pages, com um banco de dados de verdade no Supabase:
+Site estático (HTML + CSS + JS puro, sem build) hospedado no GitHub Pages,
+com banco de dados no Supabase. Formato de blog: um episódio por página,
+com um índice em árvore numa barra lateral retrátil.
 
-- **`index.html`** — a página inicial. Só os links para as duas seções e
-  a Campanha mais recente, em leitura completa.
-- **`campanhas.html`** — clique numa Campanha pra ver seus Arcos, clique
-  num Arco pra ler todas as entradas dele em sequência (mais antiga
-  primeiro, rolando a tela). Ao entrar nessa leitura a barra lateral
-  some por completo; uma trilha no topo ("Campanhas > Campanha > Arco")
-  e links de anterior/próximo arco no fim substituem o índice.
-- **`tomos.html`** — mesma ideia de árvore, mas agrupando por Campanha
-  direto (lore não tem Arco): clique numa Campanha pra ver os Tomos
-  dela, clique num Tomo pra ler. A barra lateral some do mesmo jeito,
-  com a mesma trilha + anterior/próximo (entre tomos da mesma campanha).
-- **`editor.html`** — o escritório. Onde você cria e edita as entradas,
-  atrás de um login real (Supabase Authentication). Quem já está logado
-  também vê um botão **"+ Nova entrada"** direto nas páginas de leitura,
-  acima do índice lateral — visitantes anônimos nunca veem esse botão.
+## As duas páginas
 
-## Como funciona o controle de quem edita
+- **`index.html`** — a leitura. A página inicial mostra o **último episódio
+  publicado** de Campanhas. O botão com o mascote, na borda esquerda,
+  abre e fecha o índice (começa fechado):
+  - **Campanhas** › Campanha › Arco › Sessões (`1 - A chegada`…)
+  - **Tomos do Storyteller** › tomo › subtomo › … (profundidade livre)
 
-Isso mudou desde a primeira versão do projeto. Agora:
+  Endereços: `#s=<id>` (sessão) e `#t=<id>` (tomo). "Entrar", o tema
+  claro/escuro e — só para quem está logado — "Nova entrada" ficam no topo.
+- **`editor.html`** — o escritório (login obrigatório). Abre **em outra aba**
+  a partir de "Nova entrada", para você consultar o episódio anterior enquanto
+  escreve. Começa com o seletor **Campanha ⇄ Lore**:
+  - **Campanha** → tabela `sessoes`: título, campanha, arco, sessão nº, data,
+    tags, resumo, texto.
+  - **Lore** → tabela `tomos`: título, **pertence a** (onde entra na árvore),
+    posição, tags, resumo, texto.
 
-1. Existe um usuário seu cadastrado em **Authentication > Users** no Supabase.
-2. `editor.html` pede login de verdade (e-mail + senha) usando esse usuário.
-3. A tabela `entries` tem **Row Level Security** ativada, com duas regras:
-   - qualquer um pode **ler** (`SELECT`) — é isso que faz `index.html` funcionar
-     para todo mundo, sem login;
-   - só quem estiver **autenticado** pode **escrever** (`INSERT`/`UPDATE`/`DELETE`).
+  Ao lado do formulário fica a prévia ao vivo. Tem **Publicar** / **Salvar
+  rascunho**; o que não foi salvo fica guardado no navegador
+  (`localStorage`) e o editor oferece restaurar.
 
-Ou seja, a proteção não depende mais de esconder uma senha no código-fonte —
-é o próprio banco de dados que decide quem pode fazer o quê.
+## Banco de dados (Supabase)
 
-## Fluxo de trabalho para adicionar/editar uma história
+`sessoes`: `id, created_at, updated_at, title, campaign, arc, session, date,
+tags, summary, content, published`
 
-Ficou bem mais direto que antes: não tem mais exportar arquivo, nem `git push`
-para publicar conteúdo.
+`tomos`: `id, created_at, updated_at, parent_id, position, title, summary,
+content, tags, published`
+(`parent_id` aponta para outro tomo; vazio = raiz. `position` é a ordem entre
+irmãos. Um tomo com filhos não pode ser excluído antes deles.)
 
-1. Abra `editor.html` e faça login com seu e-mail/senha.
-2. Preencha o formulário à esquerda — o painel à direita mostra a
-   pré-visualização exatamente como vai aparecer para quem ler.
-3. Clique em **Salvar entrada no banco**. A entrada já fica publicada
-   na hora — qualquer pessoa que abrir `index.html` já vê a novidade.
-4. Para editar uma entrada existente, abra a lista **"Entradas existentes"**,
-   clique nela para carregar no formulário, ajuste o que quiser e salve de novo.
-5. Para excluir, use o botão **"Excluir esta entrada"** (dentro do formulário)
-   ou o ✕ ao lado da entrada na lista.
+- `published = false` é rascunho.
+- **RLS** nas duas tabelas: visitante (`anon`) só lê o que está publicado;
+  só o usuário-autor (política `autor_tudo`, presa ao `auth.uid()` dele) lê
+  rascunhos e escreve. Outras contas autenticadas não escrevem nada. Se um
+  dia trocar o usuário do autor, atualize o UUID nas duas políticas.
+- `js/supabase-client.js` guarda a URL e a *publishable key* (seguras de
+  expor: quem decide são as políticas de RLS).
+- A tabela antiga `entries` foi removida.
 
-O botão **"Baixar cópia de backup"** é opcional — baixa um `.json` com tudo
-que está no banco hoje, só como segurança extra. Não é mais necessário para
-publicar nada.
+## Como escrever
 
-## Configuração técnica (já feita neste projeto)
+1. Abra o site, clique em **Entrar** e depois em **Nova entrada** (abre o editor).
+2. Escolha **Campanha** ou **Lore**, preencha e clique em **Publicar**.
+   Em Campanha, ao digitar campanha e arco já existentes, o número da próxima
+   sessão é sugerido.
+3. Para editar, use o link "Editar esta entrada" no fim do post, ou
+   "Abrir uma entrada existente" no editor. O tipo (Campanha/Lore) não muda
+   numa entrada já salva.
+4. **Backup** baixa um `.json` com as duas tabelas, só como segurança extra.
 
-- `js/supabase-client.js` guarda a URL do projeto e a *publishable key*.
-  Ambas são seguras de expor no código: quem decide o que pode ou não ser
-  feito são as RLS policies da tabela, não essas credenciais.
-- A tabela `entries` tem as colunas: `id`, `created_at` (automáticas),
-  `title`, `type`, `campaign`, `arc`, `session`, `date`, `tags` (lista),
-  `summary`, `content`.
-- `type` aceita duas categorias: `campanha` (relatos de mesa) e `tomo`
-  (lore de Kauntar). Rótulos e ícones em `js/render.js`, cores em
-  `css/style.css`.
-- `campaign` agrupa as duas categorias: em `campanhas.html` é o nível
-  acima de `arc` na árvore (ex.: campanha "A Queda de Ferramor"
-  contendo os arcos "Arco 1", "Arco 2"...); em `tomos.html`, como lore
-  não tem `arc`, `campaign` é o único nível de agrupamento (a campanha
-  contém os tomos direto). Entradas sem `campaign` caem num grupo "Sem
-  campanha" na árvore, não desaparecem.
-- O botão "+ Nova entrada" nas páginas de leitura é só uma conveniência
-  de interface: ele consulta `supabaseClient.auth.getSession()` no
-  navegador pra decidir se aparece. Quem realmente barra escrita não
-  autorizada é a RLS da tabela (`authenticated_Writing`), não esse
-  botão — então não há problema de segurança em como ele é escondido.
+Formatação do texto: `**negrito**`, `*itálico*`, `## Subtítulo`, listas com
+`- item`, linha em branco entre parágrafos.
 
-Se algum dia você trocar de projeto Supabase (ou criar um segundo, por
-exemplo para testes), só precisa atualizar `SUPABASE_URL` e
-`SUPABASE_PUBLISHABLE_KEY` em `js/supabase-client.js`.
+## Arquivos
 
-## Publicando no GitHub Pages
-
-O front-end continua 100% estático — o GitHub Pages só entrega os arquivos,
-quem fala com o banco é o JavaScript rodando no navegador de quem acessa.
-
-1. Suba esta pasta inteira (`index.html`, `campanhas.html`, `tomos.html`,
-   `editor.html`, `css/`, `js/`) para um repositório no GitHub.
-2. No repositório, vá em **Settings → Pages**.
-3. Em **Source**, escolha a branch `main` (ou `master`) e a pasta `/ (root)`.
-4. Salve. Em alguns minutos o GitHub mostra o link público, algo como:
-   `https://seu-usuario.github.io/nome-do-repositorio/`
-5. Compartilhe esse link — ele abre em `index.html` (a leitura). O escritório
-   fica em `.../editor.html`; você não precisa divulgar esse link, mas mesmo
-   que alguém o encontre, só quem tiver seu login consegue editar algo.
-
-Qualquer outro host estático gratuito (Netlify, Vercel, Cloudflare Pages,
-Surge etc.) funciona do mesmo jeito, sem passo de build.
+```
+index.html   editor.html
+css/style.css                    paleta "Véu Élfico" (claro/escuro)
+js/supabase-client.js            conexão
+js/render.js                     utilitários, consultas, agrupamento e a postagem
+js/reader.js                     leitura, índice em árvore, login
+js/editor.js                     escritório
+js/theme.js                      tema claro/escuro
+img/mascot.png                   mascote (botão do índice)
+```

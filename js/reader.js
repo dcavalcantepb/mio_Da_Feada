@@ -1,325 +1,287 @@
-/* Monta as páginas de leitura: index.html (home), campanhas.html e
-   tomos.html. Todas buscam as entradas no Supabase (fetchStories, de
-   render.js) e desenham a parte que cabe ao escopo da página atual,
-   identificado por <body data-scope="home|campanhas|tomos">.
+/* Página de leitura (index.html) — uma página só, estilo blog.
 
-   campanhas.html e tomos.html têm dois modos:
-   - "navegar": a barra lateral mostra a árvore Campanha > (Arco ou
-     Tomo) pra escolher o que ler.
-   - "ler": a barra lateral some por completo, a página fica cheia com
-     o texto — em campanhas.html isso é a leitura sequencial de todas
-     as entradas do arco escolhido, da mais antiga pra mais nova.
-   Uma trilha (Campanhas/Tomos > Campanha > Arco) no topo e links de
-   anterior/próximo no fim substituem o antigo link único de "voltar",
-   pra facilitar pular entre arcos/tomos sem sair da leitura. */
+   Rotas por hash:
+     (vazio)   o último episódio publicado da seção Campanhas
+     #s=<id>   uma sessão de campanha
+     #t=<id>   um tomo (nó da árvore de lore)
 
-const SCOPE = document.body.dataset.scope;
+   O índice fica numa barra lateral retrátil, com duas árvores separadas:
+     Campanhas > Campanha > Arco > Sessões        (tabela `sessoes`)
+     Tomos do Storyteller > Tomo > Subtomo > ...  (tabela `tomos`)
+   Visitante vê só o que está publicado; logado vê também os rascunhos
+   (quem decide isso é a RLS do banco, não este arquivo). */
 
-let allEntries = [];
+const els = {
+  nav: document.getElementById('nav'),
+  navToggle: document.getElementById('navToggle'),
+  scrim: document.getElementById('scrim'),
+  tree: document.getElementById('tree'),
+  post: document.getElementById('post'),
+  pager: document.getElementById('pager'),
+  btnAuth: document.getElementById('btnAuth'),
+  btnNew: document.getElementById('btnNew'),
+  dlg: document.getElementById('loginDialog')
+};
 
-const pageEl = document.getElementById('page');
-const spineIndexEl = document.getElementById('spineIndex'); // não existe em index.html
-const chronicleEl = document.querySelector('.chronicle');
+let sessoes = [];
+let tomos = [];
+let groups = [];
+let tomoTree = buildTomoTree([]);
+let loggedIn = false;
+const openKeys = new Set(['r:campanhas', 'r:tomos']);
 
-async function init(){
-  markActiveCategoryLink();
-  checkEditorAccess();
+document.getElementById('siteWord').textContent = SITE_INFO.title;
+document.getElementById('siteSub').textContent = SITE_INFO.subtitle;
+
+/* ============ barra lateral (retrátil, começa fechada) ============ */
+const WIDE = window.matchMedia('(min-width: 900px)');
+
+function setNav(open){
+  document.body.classList.toggle('nav-open', open);
+  els.nav.inert = !open;
+  els.navToggle.setAttribute('aria-expanded', String(open));
+  els.navToggle.setAttribute('aria-label', open ? 'Fechar o índice' : 'Abrir o índice');
+  els.scrim.hidden = !(open && !WIDE.matches);
+}
+els.navToggle.addEventListener('click', () => setNav(!document.body.classList.contains('nav-open')));
+els.scrim.addEventListener('click', () => setNav(false));
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && document.body.classList.contains('nav-open') && !els.dlg.open){
+    setNav(false);
+    els.navToggle.focus();
+  }
+});
+WIDE.addEventListener('change', () => setNav(document.body.classList.contains('nav-open')));
+
+/* ============ login ============ */
+async function refreshAuth(){
+  const { data } = await supabaseClient.auth.getSession();
+  const now = !!data.session;
+  const changed = now !== loggedIn;
+  loggedIn = now;
+  els.btnAuth.textContent = loggedIn ? 'Sair' : 'Entrar';
+  els.btnNew.hidden = !loggedIn;
+  return changed;
+}
+
+els.btnAuth.addEventListener('click', async () => {
+  if(loggedIn){
+    await supabaseClient.auth.signOut();
+    return;
+  }
+  document.getElementById('loginMsg').textContent = '';
+  els.dlg.showModal();
+  document.getElementById('loginEmail').focus();
+});
+document.getElementById('loginCancel').addEventListener('click', () => els.dlg.close());
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const msg = document.getElementById('loginMsg');
+  const btn = document.getElementById('loginSubmit');
+  msg.textContent = '';
+  btn.disabled = true;
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email: document.getElementById('loginEmail').value.trim(),
+    password: document.getElementById('loginPassword').value
+  });
+  btn.disabled = false;
+  if(error){
+    msg.textContent = 'Não consegui entrar: ' + error.message;
+    return;
+  }
+  document.getElementById('loginPassword').value = '';
+  els.dlg.close();
+});
+
+/* logou/deslogou (aqui ou em outra aba): recarrega, porque rascunhos entram ou saem */
+supabaseClient.auth.onAuthStateChange(async () => {
+  if(await refreshAuth()) await loadAndRender();
+});
+
+/* ============ dados ============ */
+async function loadAndRender(){
   try{
-    const { site, entries } = await fetchStories();
-    document.getElementById('siteWord').textContent = site.title;
-    document.getElementById('siteSub').textContent = site.subtitle;
-    allEntries = entries;
-
-    if(SCOPE === 'home') return initHome();
-    if(SCOPE === 'campanhas') return renderCampanhasView();
-    if(SCOPE === 'tomos') return renderTomosView();
+    [sessoes, tomos] = await Promise.all([fetchSessoes(), fetchTomos()]);
   }catch(err){
-    pageEl.innerHTML = `<p class="empty-state">Não consegui carregar: ${escapeHtml(err.message)}</p>`;
-  }
-}
-
-/* ---------- home: só a Campanha mais recente ---------- */
-function initHome(){
-  const campanhas = allEntries.filter(e => e.type === 'campanha');
-  if(!campanhas.length){
-    pageEl.innerHTML = '<p class="empty-state">Ainda não há nenhuma Campanha publicada.</p>';
+    els.post.innerHTML = `<p class="form-msg">Não consegui carregar a crônica: ${escapeHtml(err.message)}</p>`;
     return;
   }
-  renderSingleEntry(campanhas[campanhas.length - 1]);
+  groups = groupSessoes(sessoes);
+  tomoTree = buildTomoTree(tomos);
+  renderTree();
+  route();
 }
 
-function groupByArc(entries){
-  const groups = new Map();
-  for(const e of entries){
-    const key = (e.arc || '').trim() || 'Sem arco';
-    if(!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(e);
-  }
-  return groups;
+/* ============ árvore do índice ============ */
+function badge(published){ return published ? '' : ' <span class="badge">rascunho</span>'; }
+
+function groupNode(key, label, depth, inner, extra = ''){
+  const open = openKeys.has(key);
+  return `<li class="node${open ? ' open' : ''}" data-key="${escapeHtml(key)}">
+    <button class="row row--toggle${extra}" type="button" style="--d:${depth}" aria-expanded="${open}">
+      <span class="caret" aria-hidden="true"></span><span class="row__label">${escapeHtml(label)}</span>
+    </button>
+    <ul>${inner}</ul></li>`;
 }
 
-function groupByCampaign(entries){
-  const groups = new Map();
-  for(const e of entries){
-    const key = (e.campaign || '').trim() || 'Sem campanha';
-    if(!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(e);
-  }
-  return groups;
+function leafLink(hash, label, depth, published){
+  return `<li class="node"><a class="row row--leaf" style="--d:${depth}" href="${hash}" data-hash="${hash}">
+    <span class="row__label">${escapeHtml(label)}${badge(published)}</span></a></li>`;
 }
 
-function readHashParams(){
-  return new URLSearchParams(location.hash.replace(/^#/, ''));
+function tomoNode(t, depth){
+  const kids = tomoTree.childrenOf(t.id);
+  const hash = `#t=${t.id}`;
+  if(!kids.length) return leafLink(hash, t.title, depth, t.published);
+  const key = `t:${t.id}`;
+  const open = openKeys.has(key);
+  return `<li class="node${open ? ' open' : ''}" data-key="${key}">
+    <div class="row row--split" style="--d:${depth}">
+      <button class="caret-btn" type="button" aria-expanded="${open}" aria-label="Expandir ${escapeHtml(t.title)}"><span class="caret" aria-hidden="true"></span></button>
+      <a class="row__label" href="${hash}" data-hash="${hash}">${escapeHtml(t.title)}${badge(t.published)}</a>
+    </div>
+    <ul>${kids.map(k => tomoNode(k, depth + 1)).join('')}</ul></li>`;
 }
 
-/* ---------- campanhas.html ---------- */
-function renderCampanhasView(){
-  const campanhas = allEntries.filter(e => e.type === 'campanha');
-  const params = readHashParams();
-  const campaign = params.get('c');
-  const arc = params.get('a');
+function renderTree(){
+  const campanhas = groups.length
+    ? groups.map(c => groupNode(`c:${c.name}`, c.name, 1,
+        c.arcs.map(a => groupNode(`a:${c.name}|${a.name}`, a.name, 2,
+          a.items.map(s => leafLink(`#s=${s.id}`, sessionLabel(s), 3, s.published)).join(''))).join(''))).join('')
+    : '<li class="tree__empty">Nenhuma sessão ainda.</li>';
+  const lore = tomoTree.roots.length
+    ? tomoTree.roots.map(t => tomoNode(t, 1)).join('')
+    : '<li class="tree__empty">Nenhum tomo ainda.</li>';
 
-  if(campaign && arc){
-    const entries = campanhas.filter(e =>
-      ((e.campaign || '').trim() || 'Sem campanha') === campaign &&
-      ((e.arc || '').trim() || 'Sem arco') === arc
-    );
-    if(entries.length){
-      enterReadingMode();
-      const arcsInCampaign = [...groupByArc(
-        campanhas.filter(e => ((e.campaign || '').trim() || 'Sem campanha') === campaign)
-      ).keys()];
-      const idx = arcsInCampaign.indexOf(arc);
-      const prev = idx > 0
-        ? { href: `#c=${encodeURIComponent(campaign)}&a=${encodeURIComponent(arcsInCampaign[idx - 1])}`, label: arcsInCampaign[idx - 1] }
-        : null;
-      const next = idx < arcsInCampaign.length - 1
-        ? { href: `#c=${encodeURIComponent(campaign)}&a=${encodeURIComponent(arcsInCampaign[idx + 1])}`, label: arcsInCampaign[idx + 1] }
-        : null;
-      renderSequentialReading(entries, {
-        crumbs: [
-          { label: 'Campanhas', href: 'campanhas.html' },
-          { label: campaign, href: `campanhas.html#c=${encodeURIComponent(campaign)}` },
-          { label: arc }
-        ],
-        prev, next
-      });
-      return;
-    }
-  }
+  els.tree.innerHTML = `<ul class="tree__root">
+    ${groupNode('r:campanhas', 'Campanhas', 0, campanhas, ' row--root')}
+    ${groupNode('r:tomos', 'Tomos do Storyteller', 0, lore, ' row--root')}
+  </ul>`;
+}
 
-  exitReadingMode();
-  if(!campanhas.length){
-    spineIndexEl.innerHTML = '<p class="spine__empty">nada por aqui ainda</p>';
-    pageEl.innerHTML = '<p class="empty-state">Ainda não há nenhuma Campanha publicada.</p>';
+els.tree.addEventListener('click', e => {
+  const btn = e.target.closest('.row--toggle, .caret-btn');
+  if(btn){
+    const node = btn.closest('.node');
+    const open = !node.classList.contains('open');
+    node.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', String(open));
+    open ? openKeys.add(node.dataset.key) : openKeys.delete(node.dataset.key);
     return;
   }
-  spineIndexEl.innerHTML = renderCampaignTree(campanhas, campaign);
-  pageEl.innerHTML = '<p class="empty-state">Escolha uma campanha e um arco, ao lado, pra começar a leitura.</p>';
-  wireCampaignTree();
-}
-
-function renderCampaignTree(items, openCampaign){
-  let html = '';
-  for(const [campaign, campItems] of groupByCampaign(items)){
-    const arcs = groupByArc(campItems);
-    const isOpen = openCampaign && campaign === openCampaign;
-    html += `<details class="tree-node tree-node--campaign"${isOpen ? ' open' : ''}>
-      <summary class="tree-node__label">${escapeHtml(campaign)}</summary>
-      <div class="tree-node__children">${
-        [...arcs.keys()].map(arc => `
-          <button class="spine__item" data-c="${escapeHtml(campaign)}" data-a="${escapeHtml(arc)}">${escapeHtml(arc)}</button>
-        `).join('')
-      }</div>
-    </details>`;
-  }
-  return html;
-}
-
-function wireCampaignTree(){
-  spineIndexEl.querySelectorAll('.spine__item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const c = btn.dataset.c, a = btn.dataset.a;
-      location.hash = `c=${encodeURIComponent(c)}&a=${encodeURIComponent(a)}`;
-    });
-  });
-}
-
-/* ---------- tomos.html: também agrupados por Campanha ---------- */
-function renderTomosView(){
-  const tomos = allEntries.filter(e => e.type === 'tomo');
-  const params = readHashParams();
-  const id = params.get('id');
-  const openCampaign = params.get('c');
-
-  if(id){
-    const entry = tomos.find(e => String(e.id) === id);
-    if(entry){
-      enterReadingMode();
-      const campaign = (entry.campaign || '').trim() || 'Sem campanha';
-      const group = tomos
-        .filter(e => ((e.campaign || '').trim() || 'Sem campanha') === campaign)
-        .sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
-      const idx = group.findIndex(e => String(e.id) === id);
-      const prev = idx > 0
-        ? { href: `#id=${encodeURIComponent(group[idx - 1].id)}`, label: group[idx - 1].title }
-        : null;
-      const next = idx < group.length - 1
-        ? { href: `#id=${encodeURIComponent(group[idx + 1].id)}`, label: group[idx + 1].title }
-        : null;
-      renderSingleEntry(entry, {
-        crumbs: [
-          { label: 'Tomos de Kauntar', href: 'tomos.html' },
-          { label: campaign, href: `tomos.html#c=${encodeURIComponent(campaign)}` },
-          { label: entry.title }
-        ],
-        prev, next
-      });
-      return;
-    }
-  }
-
-  exitReadingMode();
-  if(!tomos.length){
-    spineIndexEl.innerHTML = '<p class="spine__empty">nada por aqui ainda</p>';
-    pageEl.innerHTML = '<p class="empty-state">Ainda não há nenhum Tomo publicado.</p>';
-    return;
-  }
-  spineIndexEl.innerHTML = renderTomoTree(tomos, openCampaign);
-  pageEl.innerHTML = '<p class="empty-state">Escolha uma campanha e um tomo, ao lado, pra ler.</p>';
-  wireTomoTree();
-}
-
-function renderTomoTree(items, openCampaign){
-  let html = '';
-  for(const [campaign, campItems] of groupByCampaign(items)){
-    const sorted = campItems.slice().sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
-    const isOpen = openCampaign && campaign === openCampaign;
-    html += `<details class="tree-node tree-node--campaign"${isOpen ? ' open' : ''}>
-      <summary class="tree-node__label">${escapeHtml(campaign)}</summary>
-      <div class="tree-node__children">${
-        sorted.map(e => `<button class="spine__item" data-id="${e.id}">${escapeHtml(e.title)}</button>`).join('')
-      }</div>
-    </details>`;
-  }
-  return html;
-}
-
-function wireTomoTree(){
-  spineIndexEl.querySelectorAll('.spine__item').forEach(btn => {
-    btn.addEventListener('click', () => { location.hash = `id=${encodeURIComponent(btn.dataset.id)}`; });
-  });
-}
-
-/* ---------- modo de leitura: some com a lombada, a página fica cheia ---------- */
-function enterReadingMode(){ chronicleEl.classList.add('is-reading'); }
-function exitReadingMode(){ chronicleEl.classList.remove('is-reading'); }
-
-function entryHtml(entry){
-  return `
-    <p class="page__eyebrow" data-type="${entry.type}">
-      ${TYPE_ICONS[entry.type] || ''}
-      <span>${TYPE_LABELS[entry.type] || entry.type}</span>
-      ${entry.date ? `<span class="dot">·</span><span>${formatDate(entry.date)}</span>` : ''}
-      ${entry.session ? `<span class="dot">·</span><span>Sessão ${entry.session}</span>` : ''}
-      <a class="entry-edit-link" href="editor.html#edit=${encodeURIComponent(entry.id)}" hidden>✎ editar</a>
-    </p>
-    <h1>${escapeHtml(entry.title)}</h1>
-    ${entry.summary ? `<p class="page__summary">${escapeHtml(entry.summary)}</p>` : ''}
-    ${entry.tags && entry.tags.length ? `<div class="page__tags">${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-    <div class="page__body">${renderMarkdownLite(entry.content)}</div>
-  `;
-}
-
-/* troca o conteúdo de #page com um fade curto, pra não ficar seco
-   trocando de entrada — some em prefers-reduced-motion */
-function fadeSwap(fn){
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){ fn(); return; }
-  pageEl.style.opacity = '0';
-  window.setTimeout(() => {
-    fn();
-    pageEl.style.opacity = '1';
-  }, 130);
-}
-
-function renderSingleEntry(entry, nav){
-  const top = nav ? crumbsHtml(nav.crumbs) : '';
-  const bottom = nav ? pageNavHtml(nav.prev, nav.next) : '';
-  fadeSwap(() => {
-    pageEl.innerHTML = top + entryHtml(entry) + bottom;
-    revealEditLinks();
-  });
-}
-
-function renderSequentialReading(entries, nav){
-  const top = crumbsHtml(nav.crumbs);
-  const bottom = pageNavHtml(nav.prev, nav.next);
-  const body = entries.map((e, i) => `
-    ${i > 0 ? '<hr class="entry-divider">' : ''}
-    <div class="entry-block">${entryHtml(e)}</div>
-  `).join('');
-  fadeSwap(() => {
-    pageEl.innerHTML = top + body + bottom;
-    revealEditLinks();
-  });
-}
-
-/* trilha "Campanhas > Nome da campanha > Arco" (ou equivalente em Tomos) */
-function crumbsHtml(parts){
-  return `<nav class="crumbs" aria-label="Você está em">${
-    parts.map((p, i) => i < parts.length - 1
-      ? `<a href="${p.href}">${escapeHtml(p.label)}</a><span class="crumbs__sep" aria-hidden="true">›</span>`
-      : `<span class="crumbs__here">${escapeHtml(p.label)}</span>`
-    ).join('')
-  }</nav>`;
-}
-
-/* links de anterior/próximo ao fim da leitura, pra pular pro arco ou
-   tomo seguinte sem voltar pro menu */
-function pageNavHtml(prev, next){
-  if(!prev && !next) return '';
-  return `<nav class="page-nav" aria-label="Navegar">
-    ${prev ? `<a class="page-nav__link page-nav__link--prev" href="${prev.href}"><span class="page-nav__dir">← Anterior</span><span class="page-nav__label">${escapeHtml(prev.label)}</span></a>` : '<span></span>'}
-    ${next ? `<a class="page-nav__link page-nav__link--next" href="${next.href}"><span class="page-nav__dir">Próximo →</span><span class="page-nav__label">${escapeHtml(next.label)}</span></a>` : '<span></span>'}
-  </nav>`;
-}
-
-/* ---------- destaca em qual página (Campanhas/Tomos) você está ---------- */
-function markActiveCategoryLink(){
-  const here = location.pathname.split('/').pop() || 'index.html';
-  document.querySelectorAll('.spine__category-link').forEach(a => {
-    a.setAttribute('aria-current', a.getAttribute('href') === here ? 'page' : 'false');
-  });
-}
-
-/* ---------- "+ Nova entrada" e "editar" só aparecem pra quem já está logado ---------- */
-let isAuthed = false;
-async function checkEditorAccess(){
-  try{
-    const { data } = await supabaseClient.auth.getSession();
-    isAuthed = !!data?.session;
-  }catch{ isAuthed = false; }
-  if(isAuthed) document.getElementById('btnNewEntry')?.removeAttribute('hidden');
-  revealEditLinks();
-}
-
-function revealEditLinks(){
-  if(!isAuthed) return;
-  document.querySelectorAll('.entry-edit-link[hidden]').forEach(a => a.removeAttribute('hidden'));
-}
-
-/* ---------- índice em telas pequenas ---------- */
-const spineToggle = document.getElementById('spineToggle');
-const spineEl = document.getElementById('spine');
-spineToggle?.addEventListener('click', () => {
-  const open = spineEl.classList.toggle('spine--open');
-  spineToggle.setAttribute('aria-expanded', String(open));
+  if(e.target.closest('a[data-hash]') && !WIDE.matches) setNav(false);
 });
 
-window.addEventListener('hashchange', () => {
-  if(!allEntries.length) return;
-  if(SCOPE === 'campanhas') renderCampanhasView();
-  else if(SCOPE === 'tomos') renderTomosView();
-});
+/* marca o item atual e abre o caminho até ele, sem reconstruir a árvore
+   (assim o foco do teclado não se perde) */
+function syncTree(currentHash, ancestors){
+  ancestors.forEach(k => openKeys.add(k));
+  els.tree.querySelectorAll('.node[data-key]').forEach(node => {
+    const open = openKeys.has(node.dataset.key);
+    node.classList.toggle('open', open);
+    node.querySelector(':scope > .row--toggle, :scope > .row--split .caret-btn')
+      ?.setAttribute('aria-expanded', String(open));
+  });
+  els.tree.querySelectorAll('a[data-hash]').forEach(a => {
+    const on = a.dataset.hash === currentHash;
+    a.classList.toggle('is-current', on);
+    on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
+  });
+}
 
-init();
+/* ============ rotas ============ */
+window.addEventListener('hashchange', () => { route(); window.scrollTo(0, 0); });
+
+function route(){
+  const p = new URLSearchParams(location.hash.replace(/^#/, ''));
+  if(p.has('s')){
+    const s = sessoes.find(x => String(x.id) === p.get('s'));
+    if(s) return showSessao(s);
+  } else if(p.has('t')){
+    const t = tomoTree.byId.get(Number(p.get('t')));
+    if(t) return showTomo(t);
+  } else {
+    return showHome();
+  }
+  showMissing();
+}
+
+function setPager(prev, next){
+  const link = (item, dir) => item
+    ? `<a class="pager__${dir}" href="${item.href}"><span class="pager__dir">${dir === 'prev' ? '← Anterior' : 'Próxima →'}</span><span>${escapeHtml(item.label)}</span></a>`
+    : '<span></span>';
+  els.pager.hidden = !prev && !next;
+  els.pager.innerHTML = link(prev, 'prev') + link(next, 'next');
+}
+
+function paint(html, title){
+  els.post.innerHTML = html;
+  document.title = title ? `${title} — ${SITE_INFO.title}` : SITE_INFO.title;
+}
+
+function editLink(kind, id){
+  return loggedIn
+    ? `<p class="post__edit"><a href="editor.html#${kind}=${id}" target="_blank" rel="noopener">Editar esta entrada</a></p>`
+    : '';
+}
+
+function showHome(){
+  const latest = sessoes.filter(s => s.published).slice(-1)[0];
+  if(!latest){
+    paint(`<p class="muted">Ainda não há nenhum episódio publicado.${loggedIn ? ' Use “Nova entrada” para escrever o primeiro.' : ''}</p>`);
+    setPager(null, null);
+    syncTree('', []);
+    return;
+  }
+  showSessao(latest, true);
+}
+
+function showSessao(s, isHome){
+  const c = (s.campaign || '').trim() || NO_CAMPAIGN;
+  const a = (s.arc || '').trim() || NO_ARC;
+  const crumbs = [c, a, s.session != null ? `Sessão ${s.session}` : ''];
+  paint(
+    `${isHome ? '<p class="post__kicker">Último episódio</p>' : ''}${renderPostHtml(s, 'sessao', crumbs)}${editLink('sessao', s.id)}`,
+    s.title
+  );
+
+  const flat = groups.flatMap(g => g.arcs.flatMap(x => x.items)).filter(x => x.published || loggedIn);
+  const i = flat.findIndex(x => x.id === s.id);
+  const mk = x => x && { href: `#s=${x.id}`, label: sessionLabel(x) };
+  setPager(mk(flat[i - 1]), mk(flat[i + 1]));
+
+  syncTree(`#s=${s.id}`, ['r:campanhas', `c:${c}`, `a:${c}|${a}`]);
+}
+
+function showTomo(t){
+  const path = tomoTree.pathOf(t.id);
+  const crumbs = path.slice(0, -1).map(n => n.title);
+  const kids = tomoTree.childrenOf(t.id);
+  const empty = kids.length ? '' : '<p class="muted">Em breve.</p>';
+  let html = renderPostHtml(t, 'tomo', crumbs, empty);
+  if(kids.length){
+    html += `<section class="children"><h2>Neste tomo</h2><ul>${
+      kids.map(k => `<li><a href="#t=${k.id}">${escapeHtml(k.title)}</a>${badge(k.published)}${k.summary ? `<span class="children__sum">${escapeHtml(k.summary)}</span>` : ''}</li>`).join('')
+    }</ul></section>`;
+  }
+  paint(html + editLink('tomo', t.id), t.title);
+
+  const sibs = tomoTree.childrenOf(t.parent_id ?? null);
+  const i = sibs.findIndex(x => x.id === t.id);
+  const mk = x => x && { href: `#t=${x.id}`, label: x.title };
+  setPager(mk(sibs[i - 1]), mk(sibs[i + 1]));
+
+  syncTree(`#t=${t.id}`, ['r:tomos', ...path.slice(0, -1).map(n => `t:${n.id}`)]);
+}
+
+function showMissing(){
+  paint('<p class="muted">Não encontrei essa página. Ela pode ter sido movida ou ainda ser um rascunho.</p>');
+  setPager(null, null);
+  syncTree('', []);
+}
+
+/* ============ início ============ */
+(async function boot(){
+  await refreshAuth();
+  await loadAndRender();
+})();

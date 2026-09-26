@@ -3,47 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>O Mio da Feada — Bem-vindo a Netéria</title>
+<title>O Mio da Feada</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/theme.js"></script>
 </head>
-<body data-scope="home">
+<body>
 
-<header class="masthead">
-  <a class="masthead__brand" href="index.html">
-    <img class="masthead__mascot" src="img/mascot.png" alt="">
-    <span class="masthead__wordmark">
-      <span class="masthead__word" id="siteWord">O Mio da Feada</span>
-      <span class="masthead__sub" id="siteSub">Bem-vindo a Netéria</span>
-    </span>
-  </a>
-  <div class="masthead__controls">
-    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar entre dia e noite" title="Alternar entre dia e noite"></button>
-    <a class="btn btn--ghost masthead__login" href="editor.html">Entrar</a>
-  </div>
-</header>
+<button class="nav-toggle" id="navToggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Abrir o índice" title="Índice">
+  <img src="img/mascot.png" alt="">
+</button>
+<div class="scrim" id="scrim" hidden></div>
 
-<button class="spine-toggle" id="spineToggle" aria-expanded="false" aria-controls="spine">☰ Categorias</button>
+<aside class="nav" id="nav" aria-label="Índice" inert>
+  <nav class="tree" id="tree" aria-label="Campanhas e Tomos"></nav>
+</aside>
 
-<div class="chronicle">
-  <div class="spine-col">
-    <a class="btn btn--primary spine__new" id="btnNewEntry" href="editor.html" hidden>+ Nova entrada</a>
-    <nav class="spine" id="spine" aria-label="Categorias">
-      <div class="spine__categories">
-        <a class="spine__category-link" href="campanhas.html">Campanhas</a>
-        <a class="spine__category-link" href="tomos.html">Tomos de Kauntar</a>
-      </div>
-    </nav>
+<div class="layout">
+  <div class="topbar">
+    <button class="theme-toggle" id="themeToggle" type="button"></button>
+    <button class="btn btn--ghost" id="btnAuth" type="button">Entrar</button>
   </div>
 
-  <main class="page-wrap">
-    <article class="page torn paper-grain" id="page">
-      <p class="empty-state">Carregando a crônica…</p>
+  <header class="masthead">
+    <a class="masthead__word" href="#" id="siteWord">O Mio da Feada</a>
+    <p class="masthead__sub" id="siteSub">Sua Sessão de Escapismo Semanal.</p>
+    <a class="btn btn--primary masthead__new" id="btnNew" href="editor.html" target="_blank" rel="noopener" hidden>Nova entrada</a>
+  </header>
+
+  <main class="content">
+    <article class="post" id="post" aria-live="polite">
+      <p class="muted">Carregando a crônica…</p>
     </article>
+    <nav class="pager" id="pager" aria-label="Anterior e próxima" hidden></nav>
   </main>
+
+  <footer class="foot">O Mio da Feada · Lendas de Netéria</footer>
 </div>
+
+<dialog class="login" id="loginDialog" aria-labelledby="loginTitle">
+  <form method="dialog" id="loginForm">
+    <h2 id="loginTitle">Entrar</h2>
+    <label class="field">E-mail
+      <input type="email" id="loginEmail" autocomplete="username" required>
+    </label>
+    <label class="field">Senha
+      <input type="password" id="loginPassword" autocomplete="current-password" required>
+    </label>
+    <p class="form-msg" id="loginMsg" role="alert"></p>
+    <div class="row-actions">
+      <button class="btn btn--ghost" type="button" id="loginCancel">Cancelar</button>
+      <button class="btn btn--primary" type="submit" id="loginSubmit">Entrar</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>

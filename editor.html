@@ -3,7 +3,6 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
 <title>Escritório — O Mio da Feada</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -12,106 +11,125 @@
 </head>
 <body>
 
-<div id="gateScreen" class="gate">
-  <h1>Escritório</h1>
-  <p>Faça login com a conta criada no Supabase Authentication. É um login de verdade: as regras de segurança (RLS) do banco garantem que só essa conta pode criar, editar ou excluir entradas — qualquer outra pessoa só consegue ler.</p>
-  <input type="email" id="gateEmail" placeholder="E-mail" autocomplete="username">
-  <input type="password" id="gatePassword" placeholder="Senha" autocomplete="current-password">
-  <button class="btn btn--primary" id="gateEnter" style="width:100%;justify-content:center;">Entrar</button>
-  <p class="warn" id="gateMsg" style="min-height:1em;"></p>
-  <a class="gate__back" href="index.html">← Ver o site</a>
+<!-- entrada: só quem tem login do Supabase escreve -->
+<div class="gate" id="gateScreen" hidden>
+  <form class="gate__card" id="gateForm">
+    <h1>Escritório</h1>
+    <p class="muted">Entre para escrever ou editar entradas.</p>
+    <label class="field">E-mail
+      <input type="email" id="gateEmail" autocomplete="username" required>
+    </label>
+    <label class="field">Senha
+      <input type="password" id="gatePassword" autocomplete="current-password" required>
+    </label>
+    <p class="form-msg" id="gateMsg" role="alert"></p>
+    <div class="row-actions">
+      <a class="btn btn--ghost" href="index.html">Voltar ao site</a>
+      <button class="btn btn--primary" type="submit">Entrar</button>
+    </div>
+  </form>
 </div>
 
-<div id="deskScreen" class="desk" hidden>
-  <header class="masthead">
-    <span class="masthead__word">O Mio da Feada</span>
-    <span class="masthead__sub">escritório do mestre</span>
-    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Alternar entre dia e noite" title="Alternar entre dia e noite"></button>
+<div id="deskScreen" hidden>
+  <header class="deskbar">
+    <a class="deskbar__brand" href="index.html" target="_blank" rel="noopener" title="Abrir o site em outra aba">O Mio da Feada</a>
+    <span class="deskbar__tag">Escritório</span>
+    <div class="deskbar__right">
+      <span class="pill" id="statusPill">carregando…</span>
+      <a class="btn btn--ghost" href="index.html" target="_blank" rel="noopener">Ver site</a>
+      <button class="btn btn--ghost" type="button" id="btnBackup">Backup</button>
+      <button class="theme-toggle" id="themeToggle" type="button"></button>
+      <button class="btn btn--ghost" type="button" id="btnLogout">Sair</button>
+    </div>
   </header>
 
-  <div class="toolbar">
-    <button class="btn" id="btnNew">+ Nova entrada</button>
-    <span class="toolbar__spacer"></span>
-    <span class="status-pill" id="statusPill">conectado ao banco</span>
-    <a class="btn btn--ghost" href="index.html">← Ver o site</a>
-    <button class="btn btn--ghost" id="btnExport">Baixar cópia de backup ⇩</button>
-    <button class="btn btn--ghost" id="btnLogout">Sair</button>
-  </div>
+  <main class="desk">
+    <div class="desk__top">
+      <div class="switch" role="radiogroup" aria-label="Tipo de entrada">
+        <input type="radio" name="mode" id="modeCampanha" value="campanha" checked>
+        <input type="radio" name="mode" id="modeLore" value="lore">
+        <span class="switch__thumb" aria-hidden="true"></span>
+        <label for="modeCampanha">Campanha</label>
+        <label for="modeLore">Lore</label>
+      </div>
+      <p class="desk__lock" id="lockNote" hidden>O tipo não muda numa entrada já salva. Para mudar, crie uma nova.</p>
 
-  <div class="desk__body">
-    <section class="form-pane">
-      <details style="margin-bottom:1.2rem;">
-        <summary style="cursor:pointer; color:var(--violet); font-family:var(--font-mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em;">Entradas existentes</summary>
-        <ul class="entry-list" id="entryList" style="margin-top:.6rem;"></ul>
+      <details class="existing" id="existing">
+        <summary>Abrir uma entrada existente</summary>
+        <div class="existing__list" id="existingList"></div>
       </details>
+    </div>
 
-      <div class="field">
-        <label for="fTitle">Título</label>
-        <input type="text" id="fTitle" placeholder="A taverna que não devia existir">
-      </div>
+    <div class="banner" id="draftBanner" hidden>
+      <p>Há um rascunho local não salvo desta entrada, guardado neste navegador.</p>
+      <button type="button" id="draftRestore">Restaurar</button>
+      <button type="button" id="draftDiscard">Descartar</button>
+    </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label for="fType">Tipo</label>
-          <select id="fType">
-            <option value="campanha">Campanha</option>
-            <option value="tomo">Tomo de Kauntar</option>
-          </select>
+    <div class="desk__cols">
+      <form class="form" id="entryForm" novalidate>
+        <label class="field">Título
+          <input id="fTitle" type="text" autocomplete="off">
+        </label>
+
+        <div class="form__row" data-only="campanha">
+          <label class="field">Campanha
+            <input id="fCampaign" type="text" list="dlCampaigns" autocomplete="off" placeholder="ex.: Os Mala Fortuna">
+          </label>
+          <label class="field">Arco
+            <input id="fArc" type="text" list="dlArcs" autocomplete="off" placeholder="ex.: Vulturia">
+          </label>
         </div>
-        <div class="field">
-          <label for="fDate">Data</label>
-          <input type="date" id="fDate">
+        <div class="form__row" data-only="campanha">
+          <label class="field">Sessão nº
+            <input id="fSession" type="number" min="0" step="1">
+          </label>
+          <label class="field">Data da sessão
+            <input id="fDate" type="date">
+          </label>
         </div>
-      </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label for="fCampaign">Campanha</label>
-          <input type="text" id="fCampaign" placeholder="A Queda de Ferramor" list="campaignList" autocomplete="off">
-          <datalist id="campaignList"></datalist>
+        <div class="form__row" data-only="lore" hidden>
+          <label class="field">Pertence a
+            <select id="fParent"></select>
+          </label>
+          <label class="field">Posição entre irmãos
+            <input id="fPosition" type="number" step="1">
+          </label>
         </div>
-        <div class="field">
-          <label for="fArc">Arco / capítulo</label>
-          <input type="text" id="fArc" placeholder="Arco 1 — A fuga da capital" list="arcList" autocomplete="off">
-          <datalist id="arcList"></datalist>
+        <p class="form__hint" data-only="lore" hidden>“Pertence a” escolhe onde este tomo entra na árvore. A posição define a ordem (0, 1, 2…) dentro do mesmo pai.</p>
+
+        <label class="field">Tags (separadas por vírgula)
+          <input id="fTags" type="text" autocomplete="off">
+        </label>
+        <label class="field">Resumo
+          <textarea id="fSummary" rows="2"></textarea>
+        </label>
+        <label class="field">Texto
+          <textarea id="fContent" rows="18"></textarea>
+        </label>
+        <p class="form__hint">Formatação: <code>**negrito**</code>, <code>*itálico*</code>, <code>## Subtítulo</code>, listas com <code>- item</code>. Linha em branco separa parágrafos.</p>
+
+        <div class="form__actions">
+          <button class="btn btn--primary" type="button" id="btnPrimary">Publicar</button>
+          <button class="btn" type="button" id="btnSecondary">Salvar rascunho</button>
+          <span class="spacer"></span>
+          <button class="btn btn--ghost" type="button" id="btnNew">Nova em branco</button>
+          <button class="btn btn--danger" type="button" id="btnDelete" hidden>Excluir</button>
         </div>
-      </div>
+      </form>
 
-      <div class="field">
-        <label for="fSession">Nº da sessão (opcional)</label>
-        <input type="number" id="fSession" min="0">
-      </div>
-
-      <div class="field">
-        <label for="fTags">Etiquetas (separadas por vírgula)</label>
-        <input type="text" id="fTags" placeholder="combate, cidade, gancho">
-      </div>
-
-      <div class="field">
-        <label for="fSummary">Resumo (uma linha, aparece em itálico no topo)</label>
-        <input type="text" id="fSummary" placeholder="Quatro desconhecidos são contratados...">
-      </div>
-
-      <div class="field">
-        <label for="fContent">Conteúdo</label>
-        <textarea id="fContent" placeholder="Escreva aqui. Linha em branco separa parágrafos.&#10;**negrito**, *itálico*, ## Subtítulo, e linhas começando com &quot;- &quot; viram lista."></textarea>
-        <p class="hint">Formatação simples: <strong>**negrito**</strong>, <em>*itálico*</em>, <code>## Subtítulo</code>, e <code>- item</code> para listas.</p>
-      </div>
-
-      <div class="field" style="display:flex; gap:.6rem;">
-        <button class="btn btn--primary" id="btnSaveEntry">Salvar entrada no banco</button>
-        <button class="btn btn--ghost" id="btnDeleteEntry" hidden>Excluir esta entrada</button>
-      </div>
-    </section>
-
-    <section class="preview-pane">
-      <p class="preview-pane__label">Pré-visualização — é assim que vai aparecer para quem ler</p>
-      <article class="page torn paper-grain" id="previewPage" style="max-width:640px;"></article>
-    </section>
-  </div>
+      <section class="preview" aria-label="Prévia">
+        <p class="preview__label">Prévia — como o leitor vai ver</p>
+        <article class="post" id="preview"></article>
+      </section>
+    </div>
+  </main>
 </div>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<datalist id="dlCampaigns"></datalist>
+<datalist id="dlArcs"></datalist>
+<div class="toast" id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js"></script>

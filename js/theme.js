@@ -4,18 +4,10 @@
 (function(){
   const KEY = 'cronica-theme';
   const root = document.documentElement;
-  const stored = localStorage.getItem(KEY);
-  if(stored === 'light' || stored === 'dark') root.setAttribute('data-theme', stored);
-
-  function apply(theme){
-    if(theme){
-      root.setAttribute('data-theme', theme);
-      localStorage.setItem(KEY, theme);
-    } else {
-      root.removeAttribute('data-theme');
-      localStorage.removeItem(KEY);
-    }
-  }
+  try{
+    const stored = localStorage.getItem(KEY);
+    if(stored === 'light' || stored === 'dark') root.setAttribute('data-theme', stored);
+  }catch(_){}
 
   function current(){
     const attr = root.getAttribute('data-theme');
@@ -23,9 +15,23 @@
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
+  function paint(btn){
+    const dark = current() === 'dark';
+    btn.textContent = dark ? '☀' : '☾';
+    btn.setAttribute('aria-label', dark ? 'Mudar para o tema claro' : 'Mudar para o tema escuro');
+    btn.title = btn.getAttribute('aria-label');
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('themeToggle');
     if(!btn) return;
-    btn.addEventListener('click', () => apply(current() === 'dark' ? 'light' : 'dark'));
+    paint(btn);
+    btn.addEventListener('click', () => {
+      const next = current() === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try{ localStorage.setItem(KEY, next); }catch(_){}
+      paint(btn);
+    });
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => paint(btn));
   });
 })();
