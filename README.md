@@ -248,4 +248,24 @@ supabase/schema.sql              esquema do banco (para recriar o projeto)
 .github/workflows/backup.yml     backup semanal criptografado
 js/theme.js                      tema claro/escuro
 img/mascot.png                   mascote (botão do índice)
+favicon.ico, img/favicon-32.png, img/apple-touch-icon.png   ícone do site (aba, favoritos, tela inicial do celular)
+scripts/gerar-favicon.js         refaz os ícones a partir do mascote
 ```
+
+## Convenções
+
+- **Toda página tem favicon.** Ao criar uma página nova, copie estas 3 linhas do `<head>`
+  de `index.html` (antes do `css/style.css`); páginas dentro de subpastas precisam ajustar os
+  caminhos:
+  ```html
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+  ```
+  O ícone é o mascote recortado rente ao desenho, com fundo transparente (legível em abas
+  claras e escuras, mesmo a 16 px); o `apple-touch-icon` leva o roxo `#1B0F3B` de fundo porque
+  o iOS não aceita transparência. Se o mascote mudar, rode `node scripts/gerar-favicon.js`
+  (precisa do Playwright). O navegador guarda o favicon em cache: após trocar, use Ctrl+F5
+  (ou abra numa aba anônima) para ver o novo.
+- **Depois de mexer no código, rode os testes de navegador** (Playwright) antes de subir e
+  confira também no tema escuro e no celular.
