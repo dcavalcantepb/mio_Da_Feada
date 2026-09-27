@@ -35,10 +35,17 @@ const personagens = dados.personagens.map(p => {
   return fotos.includes(nome) ? { ...p, photo_url: urlDaFoto(nome) } : p;
 });
 const semFoto = dados.personagens.filter(p => p.photo_url && !fotos.includes(nomeDaFoto(p.photo_url)));
+/* tomos primeiro (aponta para si mesma); depois sessoes/personagens; depois qualquer
+   outra tabela que o backup tenha trazido (hoje: escudo_notas, escudo_layout do Escudo
+   de Kauntar — mesmo projeto, sem fotos, então entram sem tratamento especial) */
+const CONHECIDAS = new Set(['tomos', 'sessoes', 'personagens']);
+const outras = Object.keys(dados).filter(k => Array.isArray(dados[k]) && !CONHECIDAS.has(k));
 const linhas = { tomos: dados.tomos, sessoes: dados.sessoes, personagens };
+for(const t of outras) linhas[t] = dados[t];
+const ordem = ['tomos', 'sessoes', 'personagens', ...outras];
 
 console.log(`Backup de ${dados.exportedAt} (${dados.project})`);
-for(const t of ['sessoes', 'tomos', 'personagens']) console.log(`  ${t}: ${dados[t].length} linhas`);
+for(const t of ordem) console.log(`  ${t}: ${dados[t].length} linhas`);
 console.log(`  fotos: ${fotos.length} arquivos`);
 console.log(`Destino: ${URL_BASE}${URL_BASE === String(dados.project).replace(/\/+$/, '') ? '  (o mesmo projeto do backup)' : '  (OUTRO projeto: os photo_url serão reescritos)'}`);
 if(semFoto.length) console.log(`Atenção: ${semFoto.length} personagem(ns) apontam para foto que não está no backup; o endereço deles fica como estava.`);
@@ -75,7 +82,7 @@ for(const nome of fotos){
 console.log(`fotos enviadas: ${fotos.length}`);
 
 /* 2) linhas, mantendo os ids (a tomos aponta para si mesma, então vai numa só requisição) */
-for(const t of ['tomos', 'sessoes', 'personagens']){
+for(const t of ordem){
   if(!linhas[t].length) continue;
   const r = await fetch(`${URL_BASE}/rest/v1/${t}?on_conflict=id`, {
     method: 'POST',
@@ -92,7 +99,8 @@ para o próximo cadastro não tentar reusar um id:
 
   select setval(pg_get_serial_sequence('public.sessoes','id'),     coalesce((select max(id) from public.sessoes), 1));
   select setval(pg_get_serial_sequence('public.tomos','id'),       coalesce((select max(id) from public.tomos), 1));
-  select setval(pg_get_serial_sequence('public.personagens','id'), coalesce((select max(id) from public.personagens), 1));
+  select setval(pg_get_serial_sequence('public.personagens','id'), coalesce((select max(id) from public.personagens), 1));${linhas.escudo_notas ? `
+  select setval(pg_get_serial_sequence('public.escudo_notas','id'), coalesce((select max(id) from public.escudo_notas), 1));` : ''}
 
 Se o destino é OUTRO projeto, lembre também de atualizar js/supabase-client.js (URL e chave pública)
 e o segredo SUPABASE_SERVICE_ROLE_KEY no GitHub.

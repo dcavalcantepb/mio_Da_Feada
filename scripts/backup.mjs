@@ -13,7 +13,10 @@ const URL_BASE = process.env.SUPABASE_URL || 'https://vvsfzhawmpjmpocutxnx.supab
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 const OUT = process.argv[2] || process.env.OUT || 'backup';
 const BUCKET = 'personagens';
-const TABELAS = ['sessoes', 'tomos', 'personagens'];
+/* sessoes/tomos/personagens são do Mio da Feada; escudo_notas/escudo_layout são
+   do Escudo de Kauntar — as duas moram no mesmo projeto Supabase, então o mesmo
+   backup semanal cobre as duas. Nenhuma tem fotos além do bucket "personagens". */
+const TABELAS = ['sessoes', 'tomos', 'personagens', 'escudo_notas', 'escudo_layout'];
 
 if(!KEY){
   console.error('Falta a chave: defina SUPABASE_SERVICE_ROLE_KEY (Supabase > Project Settings > API > service_role).');
